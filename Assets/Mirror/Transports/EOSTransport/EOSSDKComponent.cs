@@ -441,13 +441,16 @@ namespace EpicTransport {
 
                 var authExpirationOptions = new Epic.OnlineServices.Connect.AddNotifyAuthExpirationOptions();
                 authExpirationHandle = EOS.GetConnectInterface().AddNotifyAuthExpiration(ref authExpirationOptions, null, OnAuthExpiration);
-            } else if (Epic.OnlineServices.Common.IsOperationComplete(loginCallbackInfo.ResultCode)) {
+            } 
+            else if (Epic.OnlineServices.Common.IsOperationComplete(loginCallbackInfo.ResultCode))
+            {
                 Debug.Log("Login returned " + loginCallbackInfo.ResultCode + "\nRetrying...");
                 var options = new Epic.OnlineServices.Connect.CreateUserOptions() { ContinuanceToken = loginCallbackInfo.ContinuanceToken };
 
                 EOS.GetConnectInterface().CreateUser(ref options, null, (ref Epic.OnlineServices.Connect.CreateUserCallbackInfo cb) => {
                     if (cb.ResultCode != Result.Success) { Debug.Log(cb.ResultCode); return; }
                     localUserProductId = cb.LocalUserId;
+                    localUserProductIdString = cb.LocalUserId.ToString();
                     ConnectInterfaceLogin();
                 });
             }
