@@ -1,17 +1,19 @@
 {
   "dependencies": {
-    "com.cqf.urpvolumetricfog": {
-      "version": "file:com.cqf.urpvolumetricfog",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
     "com.rlabrecque.steamworks.net": {
       "version": "2024.8.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://package.openupm.com"
+    },
+    "com.sinnwrig.fogvolumes": {
+      "version": "file:com.sinnwrig.fogvolumes",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.render-pipelines.universal": "10.x.x"
+      }
     },
     "com.unity.animation.rigging": {
       "version": "1.1.1",
