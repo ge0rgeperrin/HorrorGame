@@ -51,7 +51,8 @@
       "name": "package.openupm.com",
       "url": "https://package.openupm.com",
       "scopes": [
-        "com.rlabrecque.steamworks.net"
+        "com.rlabrecque.steamworks.net",
+        "com.cqf.urpvolumetricfog"
       ]
     }
   ]
