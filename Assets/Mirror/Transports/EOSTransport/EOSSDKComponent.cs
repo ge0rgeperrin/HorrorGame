@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 
 using UnityEngine;
 
+using Mirror;
+
 /// <summary>
 /// Manages the Epic Online Services SDK
 /// Do not destroy this component!
@@ -18,17 +20,10 @@ namespace EpicTransport {
     [DefaultExecutionOrder(-32000)]
     public class EOSSDKComponent : MonoBehaviour {
 
-        // Unity Inspector shown variables
-
-        [SerializeField]
-        private EosApiKey apiKeys;
-
         [Header("User Login")]
         public bool authInterfaceLogin = false;
-        public Epic.OnlineServices.Auth.LoginCredentialType authInterfaceCredentialType = Epic.OnlineServices.Auth.LoginCredentialType.AccountPortal;
-        public uint devAuthToolPort = 7878;
-        public string devAuthToolCredentialName = "";
-        public Epic.OnlineServices.ExternalCredentialType connectInterfaceCredentialType = Epic.OnlineServices.ExternalCredentialType.DeviceidAccessToken;
+        [SerializeField] internal Epic.OnlineServices.Auth.LoginCredentialType authInterfaceCredentialType = Epic.OnlineServices.Auth.LoginCredentialType.AccountPortal;
+        [SerializeField] internal Epic.OnlineServices.ExternalCredentialType connectInterfaceCredentialType = Epic.OnlineServices.ExternalCredentialType.Epic;
         public string deviceModel = "PC Windows 64bit";
         [SerializeField] private string displayName = "User";
         public static string DisplayName {
@@ -39,6 +34,10 @@ namespace EpicTransport {
                 Instance.displayName = value;
             }
         }
+
+        /* not needed
+        public uint devAuthToolPort = 7878;
+        public string devAuthToolCredentialName = "";*/
 
         [Header("Misc")]
         public LogLevel epicLoggerLevel = LogLevel.Error;
@@ -220,6 +219,18 @@ namespace EpicTransport {
 #endif
 
         private void Awake() {
+            var list = FindObjectsByType<NetworkManager>(FindObjectsSortMode.None);
+            if (list.Length > 1)
+            {
+                initialized = true;
+                isConnecting = false;
+                Debug.Log("a");
+                Destroy(gameObject);
+
+                return;
+            }
+
+
             // Initialize Java version of the SDK with a reference to the VM with JNI
             // See https://eoshelp.epicgames.com/s/question/0D54z00006ufJBNCA2/cant-get-createdeviceid-to-work-in-unity-android-c-sdk?language=en_US
             if (Application.platform == RuntimePlatform.Android) {
@@ -255,6 +266,8 @@ namespace EpicTransport {
             Bindings.Hook(libraryPointer, GetProcAddress);
 #endif
 
+            deviceModel = SystemInfo.deviceModel;
+
             if (!delayedInitialization) {
                 Initialize();
             }
@@ -264,8 +277,8 @@ namespace EpicTransport {
             isConnecting = true;
 
             var initializeOptions = new InitializeOptions() {
-                ProductName = apiKeys.epicProductName,
-                ProductVersion = apiKeys.epicProductVersion
+                ProductName = epicProductName,
+                ProductVersion = Application.version
             };
 
             var initializeResult = PlatformInterface.Initialize(ref initializeOptions);
@@ -285,12 +298,12 @@ namespace EpicTransport {
             });
 
             var options = new Options() {
-                ProductId = apiKeys.epicProductId,
-                SandboxId = apiKeys.epicSandboxId,
-                DeploymentId = apiKeys.epicDeploymentId,
+                ProductId = epicProductId,
+                SandboxId = epicSandboxId,
+                DeploymentId = epicDeploymentId,
                 ClientCredentials = new ClientCredentials() {
-                    ClientId = apiKeys.epicClientId,
-                    ClientSecret = apiKeys.epicClientSecret
+                    ClientId = epicClientId,
+                    ClientSecret = epicClientSecret
                 },
                 TickBudgetInMilliseconds = tickBudgetInMilliseconds
             };
@@ -318,10 +331,10 @@ namespace EpicTransport {
             // If we use the Auth interface then only login into the Connect interface after finishing the auth interface login
             // If we don't use the Auth interface we can directly login to the Connect interface
             if (authInterfaceLogin) {
-                if (authInterfaceCredentialType == Epic.OnlineServices.Auth.LoginCredentialType.Developer) {
+                /*if (authInterfaceCredentialType == Epic.OnlineServices.Auth.LoginCredentialType.Developer) {
                     authInterfaceLoginCredentialId = "localhost:" + devAuthToolPort;
                     authInterfaceCredentialToken = devAuthToolCredentialName;
-                }
+                }*/
 
                 // Login to Auth Interface
                 Epic.OnlineServices.Auth.LoginOptions loginOptions = new Epic.OnlineServices.Auth.LoginOptions() {
@@ -330,7 +343,7 @@ namespace EpicTransport {
                         Id = authInterfaceLoginCredentialId,
                         Token = authInterfaceCredentialToken
                     },
-                    ScopeFlags = Epic.OnlineServices.Auth.AuthScopeFlags.BasicProfile | Epic.OnlineServices.Auth.AuthScopeFlags.FriendsList | Epic.OnlineServices.Auth.AuthScopeFlags.Presence
+                    ScopeFlags = Epic.OnlineServices.Auth.AuthScopeFlags.BasicProfile | Epic.OnlineServices.Auth.AuthScopeFlags.FriendsList | Epic.OnlineServices.Auth.AuthScopeFlags.Presence | Epic.OnlineServices.Auth.AuthScopeFlags.Country
                 };
 
                 EOS.GetAuthInterface().Login(ref loginOptions, null, OnAuthInterfaceLogin);
@@ -477,5 +490,15 @@ namespace EpicTransport {
             }
 #endif
         }
+
+        #region Keys
+        // DO NOT SHARE OR SHOW ON VIDEO
+        private string epicProductName = "HorrorGame";
+        private string epicProductId = "3f55680075984cd8b9d129232829f200";
+        private string epicSandboxId = "4ba3c475d6084d0aa6c9e494331465cb";
+        private string epicDeploymentId = "4abb0e8ee14e4acebf765eb251153b55";
+        private string epicClientId = "xyza7891QN05c82B8T9N9AouWkYF56cz";
+        private string epicClientSecret = "sxjetFla+YzfO/e1FOJYAmuGKEIXD6btrk842sbbZRI";
+        #endregion
     }
 }

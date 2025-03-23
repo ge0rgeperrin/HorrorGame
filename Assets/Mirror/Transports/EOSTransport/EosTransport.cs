@@ -272,7 +272,7 @@ namespace EpicTransport {
                 Result result = EOSSDKComponent.GetMetricsInterface().EndPlayerSession(ref endSessionOptions);
 
                 if (result == Result.Success) {
-                    Debug.LogError("Stopped Metric Session");
+                    Debug.Log("Stopped Metric Session");
                 }
             }
 

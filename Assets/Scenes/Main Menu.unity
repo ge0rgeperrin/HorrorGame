@@ -332,8 +332,11 @@ GameObject:
   m_Component:
   - component: {fileID: 2113377982}
   - component: {fileID: 2113377981}
+  - component: {fileID: 2113377989}
   - component: {fileID: 2113377984}
-  - component: {fileID: 2113377983}
+  - component: {fileID: 2113377988}
+  - component: {fileID: 2113377987}
+  - component: {fileID: 2113377986}
   - component: {fileID: 2113377985}
   m_Layer: 0
   m_Name: Network Manager
@@ -404,35 +407,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2113377983
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2113377980}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b0fecffa3f624585964b0d0eb21b18e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  port: 7777
-  DualMode: 1
-  NoDelay: 1
-  Interval: 10
-  Timeout: 10000
-  RecvBufferSize: 7361536
-  SendBufferSize: 7361536
-  FastResend: 2
-  ReceiveWindowSize: 4096
-  SendWindowSize: 4096
-  MaxRetransmit: 40
-  MaximizeSocketBuffers: 1
-  ReliableMaxMessageSize: 297433
-  UnreliableMaxMessageSize: 1194
-  debugLog: 0
-  statisticsGUI: 0
-  statisticsLog: 0
 --- !u!114 &2113377984
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -445,7 +419,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0aa135acc32a4383ae9a5817f018cb06, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Inner: {fileID: 2113377983}
+  Inner: {fileID: 2113377988}
   ClientValidateServerPubKey: 0
   ClientTrustedPubKeySignatures: []
   ServerLoadKeyPairFromFile: 0
@@ -459,8 +433,79 @@ MonoBehaviour:
   m_GameObject: {fileID: 2113377980}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6442dc8070ceb41f094e44de0bf87274, type: 3}
+  m_Script: {fileID: 11500000, guid: 5851b7d97879bac49bcdc5a9f49e5fc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  offsetX: 0
-  offsetY: 0
+  component: {fileID: 2113377989}
+  winEditorAuthInterface: 1
+  winEditorAuth: 6
+  winEditorConnect: 0
+  winPlayerAuthInterface: 0
+  winPlayerAuth: 7
+  winPlayerConnect: 18
+--- !u!114 &2113377986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113377980}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a7af265212451446a8130bf08677fb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  manager: {fileID: 2113377981}
+  lobbyName: My Lobby
+--- !u!114 &2113377987
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113377980}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe875c761de36584ebe057dfddc7f360, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2113377988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113377980}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5f2d307354f3ea49b3ea12e6763a9fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Channels: 0200000000000000
+  timeout: 25
+  maxFragments: 55
+  ignoreCachedMessagesAtStartUpInSeconds: 2
+  relayControl: 1
+--- !u!114 &2113377989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2113377980}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09c2b9adb023e6547aa45a0e8bf5fcfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  authInterfaceLogin: 1
+  authInterfaceCredentialType: 6
+  connectInterfaceCredentialType: 0
+  deviceModel: PC Windows 64bit
+  displayName: User
+  epicLoggerLevel: 200
+  collectPlayerMetrics: 1
+  checkForEpicLauncherAndRestart: 0
+  delayedInitialization: 1
+  platformTickIntervalInSeconds: 0
+  tickBudgetInMilliseconds: 0
