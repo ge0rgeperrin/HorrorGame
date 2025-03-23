@@ -6,6 +6,8 @@ using Epic.OnlineServices.Auth;
 using Epic.OnlineServices.Connect;
 using Epic.OnlineServices;
 
+using Steamworks;
+
 namespace EpicTransport
 {
     public class AutoCredentialSetter : MonoBehaviour
@@ -42,6 +44,16 @@ namespace EpicTransport
                     component.authInterfaceCredentialType = winPlayerAuth;
                     component.connectInterfaceCredentialType = winPlayerConnect;
                     break;
+            }
+
+            if (component.connectInterfaceCredentialType == ExternalCredentialType.SteamSessionTicket)
+            {
+                if (SteamManager.Initialized)
+                {
+                    EOSSDKComponent.DisplayName = SteamFriends.GetPersonaName();
+                    //set up session ticket stuff
+                    //EOSSDKComponent.SetConnectInterfaceCredentialToken(SteamUser.)
+                }
             }
 
             EOSSDKComponent.Initialize();
