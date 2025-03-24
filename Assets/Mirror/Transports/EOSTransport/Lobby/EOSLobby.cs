@@ -115,6 +115,8 @@ public class EOSLobby : MonoBehaviour {
     /// <param name="lobbyData">Optional data that you can to the lobby. By default, there is an empty attribute for searching and an attribute which holds the host's network address.</param>
     public virtual void CreateLobby(uint maxConnections, LobbyPermissionLevel permissionLevel, bool presenceEnabled, AttributeData[] lobbyData = null) {
 
+        if (maxConnections > 6) return;
+
         var createLobbyOptions = new CreateLobbyOptions {
             //lobby options
             LocalUserId = EOSSDKComponent.LocalUserProductId,
