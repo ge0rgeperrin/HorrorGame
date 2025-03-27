@@ -1,0 +1,13 @@
+{
+	"enable": true,
+	"callbackOrder": 5005,
+	"logInfo": true,
+	"inter": {
+		"removeStringLiterals": true,
+		"preserveUnityCrashHandler": false,
+		"renameExports": true,
+		"removeMonoExports": true,
+		"modifyInternalStructures": false,
+		"detectProxyLibraries": true
+	}
+}
