@@ -83,6 +83,8 @@ MonoBehaviour:
   - Unity.XR.Oculus
   - Valve.VR
   - Valve.Newtonsoft
+  - Mirror
+  - EpicTransport
   unityMethods:
   - Awake
   - FixedUpdate
@@ -217,6 +219,9 @@ MonoBehaviour:
   - BoltExecutionOrderAttribute
   - BoltNetworkUtils
   - BoltRuntimeConfigs
+  - NetworkManager
+  - NetworkServer
+  - NetworkClient
   alternateRPCAnnotations:
   - Command
   - SyncVar
@@ -296,6 +301,12 @@ MonoBehaviour:
   - Unity.Burst.BurstCompileAttribute
   equivalentAttributesForSkipRename:
   - Newtonsoft.Json.JsonPropertyAttribute
+  - Mirror.SyncVarAttribute
+  - Mirror.CommandAttribute
+  - Mirror.ClientRpcAttribute
+  - Mirror.TargetRpcAttribute
+  - Mirror.ServerAttribute
+  - Mirror.WeaverPriorityAttribute
   includeCompilationPipelineAssemblies: 1
   assemblies:
   - Assembly-CSharp.dll
