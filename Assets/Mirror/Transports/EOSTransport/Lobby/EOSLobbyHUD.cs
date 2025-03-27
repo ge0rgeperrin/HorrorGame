@@ -95,6 +95,8 @@ public class EOSLobbyHUD : MonoBehaviour
     }
 #endif
 
+    public void CreateLobbyTestUI(string name) => CreateLobbyy(name, 6, true, true);
+
     public void CreateLobbyy(string LobbyName, int MaxPlayers, bool visible, bool latejoin)
     {
         _eosLobby.CreateLobby((uint)MaxPlayers, LobbyPermissionLevel.Publicadvertised, false,
