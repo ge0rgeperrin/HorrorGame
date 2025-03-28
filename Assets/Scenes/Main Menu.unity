@@ -1063,12 +1063,12 @@ GameObject:
   m_Component:
   - component: {fileID: 2113377982}
   - component: {fileID: 2113377981}
+  - component: {fileID: 2113377985}
   - component: {fileID: 2113377989}
   - component: {fileID: 2113377984}
   - component: {fileID: 2113377988}
   - component: {fileID: 2113377987}
   - component: {fileID: 2113377986}
-  - component: {fileID: 2113377985}
   - component: {fileID: 2113377990}
   m_Layer: 0
   m_Name: Network Manager
@@ -1245,7 +1245,7 @@ MonoBehaviour:
   deviceModel: PC Windows 64bit
   displayName: User
   epicLoggerLevel: 200
-  collectPlayerMetrics: 1
+  collectPlayerMetrics: 0
   checkForEpicLauncherAndRestart: 0
   delayedInitialization: 1
   platformTickIntervalInSeconds: 0
