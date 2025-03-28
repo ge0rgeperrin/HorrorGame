@@ -70,7 +70,8 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
-Assets/Stylized Toon Pro/AmplifyShaderFunctions.unitypackage.meta
+
+# Added by GRP
 Assets/Stylized Toon Pro/AmplifyShaderFunctions.unitypackage.meta
 Assets/Stylized Toon Pro/Built-in 2021+ - only shader.unitypackage.meta
 Assets/Stylized Toon Pro/Built-in Toon Pro.unitypackage.meta
