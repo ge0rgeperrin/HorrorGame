@@ -12,6 +12,7 @@ public class FPSController : MonoBehaviour
     public float jumpSpeed = 8.0f;
     public float gravity = 20.0f;
     public Camera playerCamera;
+    public GameObject Mesh;
     public float lookSpeed = 2.0f;
     public float lookXLimit = 45.0f;
     public GameObject Lockbutton;
