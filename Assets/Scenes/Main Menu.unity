@@ -1036,7 +1036,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &2113377981
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1131,9 +1131,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   component: {fileID: 2113377989}
-  winEditorAuthInterface: 1
-  winEditorAuth: 6
-  winEditorConnect: 0
+  winEditorAuthInterface: 0
+  winEditorAuth: 3
+  winEditorConnect: 10
   winPlayerAuthInterface: 0
   winPlayerAuth: 7
   winPlayerConnect: 18
