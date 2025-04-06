@@ -58,7 +58,6 @@ sysinfo.txt
 # Builds
 *.apk
 *.aab
-*.unitypackage
 *.app
 
 # Crashlytics generated file
@@ -72,10 +71,4 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
 # Added by GRP
-Assets/Stylized Toon Pro/AmplifyShaderFunctions.unitypackage.meta
-Assets/Stylized Toon Pro/Built-in 2021+ - only shader.unitypackage.meta
-Assets/Stylized Toon Pro/Built-in Toon Pro.unitypackage.meta
-Assets/Stylized Toon Pro/URP 2021 - only shader.unitypackage.meta
-Assets/Stylized Toon Pro/URP 2022 - only shader - additional lights fix.unitypackage.meta
-
 *.DS_Store

@@ -1,5 +1,5 @@
 {
-	"enable": true,
+	"enable": false,
 	"callbackOrder": 5005,
 	"logInfo": true,
 	"inter": {
