@@ -36,6 +36,8 @@ MonoBehaviour:
     - Mirror
     - Mirror.Authenticators
     - Mirror.Components
+    - NaughtyAttributes.Core
+    - NaughtyAttributes.Test
     - PlayFab
     - Sinnwrig.FogVolumes
     showAdvancedSettings: 0

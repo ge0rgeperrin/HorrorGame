@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class FPSController : MonoBehaviour
 {
+    public static FPSController Instance;
+    
     public float walkingSpeed = 7.5f;
     public float runningSpeed = 11.5f;
     public float crouchSpeed = 3f;
@@ -17,9 +19,7 @@ public class FPSController : MonoBehaviour
     public float lookXLimit = 45.0f;
     public GameObject Lockbutton;
     private bool LockButtonVisable = true;
-
-
-    CharacterController characterController;
+    public CharacterController characterController;
     Vector3 moveDirection = Vector3.zero;
     float rotationX = 0;
 
@@ -53,13 +53,16 @@ public class FPSController : MonoBehaviour
 
     void Start()
     {
-        characterController = GetComponent<CharacterController>();
+        Instance = this;
+        if (!characterController)
+            characterController = GetComponent<CharacterController>();
         originalScale = transform.localScale;
+        LockCursor();
     }
 
     void Update()
     {
-        if (LockButtonVisable = false)
+        if (!LockButtonVisable)
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
