@@ -33,18 +33,11 @@ MonoBehaviour:
     - Assembly-CSharp
     - Assembly-CSharp-firstpass
     - DissonanceVoip
-    - EOSTransport
-    - kcp2k
     - Mirror
     - Mirror.Authenticators
     - Mirror.Components
-    - Mirror.Examples
-    - Mirror.Transports
     - PlayFab
-    - SimpleWebTransport
     - Sinnwrig.FogVolumes
-    - SteamManager
-    - Telepathy
     showAdvancedSettings: 0
   addMgrToSceneAutomatically: 0
   autoUpdateReferences: 1

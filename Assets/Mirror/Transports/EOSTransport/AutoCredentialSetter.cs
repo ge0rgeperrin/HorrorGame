@@ -51,26 +51,29 @@ namespace EpicTransport
 
             if (component.connectInterfaceCredentialType == ExternalCredentialType.SteamSessionTicket)
             {
-                if (SteamManager.Initialized)
-                {
-                    usingSteamworks = true;
-
-                    EOSSDKComponent.DisplayName = SteamFriends.GetPersonaName();
-
-                    byte[] sessionTicket = new byte[1024];
-                    SteamNetworkingIdentity sni = new SteamNetworkingIdentity();
-                    sni.SetSteamID(SteamUser.GetSteamID());
-
-                    authTicket = SteamUser.GetAuthSessionTicket(sessionTicket, sessionTicket.Length, out uint ticketLength, ref sni);
-
-                    byte[] trimmedTicket = new byte[ticketLength];
-                    Array.Copy(sessionTicket, trimmedTicket, ticketLength);
-
-                    EOSSDKComponent.SetConnectInterfaceCredentialToken(System.Convert.ToBase64String(trimmedTicket));
-                }
+                usingSteamworks = true;
+                StartCoroutine(WaitForSteam());
             }
 
             EOSSDKComponent.Initialize();
+        }
+
+        private IEnumerator WaitForSteam()
+        {
+            yield return new WaitUntil(() => SteamManager.Initialized);
+
+            EOSSDKComponent.DisplayName = SteamManager.UserData.SteamUsername;
+            
+            byte[] sessionTicket = new byte[1024];
+            SteamNetworkingIdentity sni = new SteamNetworkingIdentity();
+            sni.SetSteamID(SteamUser.GetSteamID());
+
+            authTicket = SteamUser.GetAuthSessionTicket(sessionTicket, sessionTicket.Length, out uint ticketLength, ref sni);
+
+            byte[] trimmedTicket = new byte[ticketLength];
+            Array.Copy(sessionTicket, trimmedTicket, ticketLength);
+
+            EOSSDKComponent.SetConnectInterfaceCredentialToken(System.Convert.ToBase64String(trimmedTicket));
         }
 
         private void OnApplicationQuit()
