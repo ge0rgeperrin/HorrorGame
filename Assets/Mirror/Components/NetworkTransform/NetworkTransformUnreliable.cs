@@ -34,7 +34,7 @@ namespace Mirror
             base.Configure();
 
             // force syncMethod to unreliable
-            syncMethod = SyncMethod.Hybrid;
+            syncMethod = SyncMethod.Reliable;
         }
 
         // update //////////////////////////////////////////////////////////////

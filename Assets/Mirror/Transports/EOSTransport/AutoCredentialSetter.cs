@@ -53,35 +53,14 @@ namespace EpicTransport
             if (component.connectInterfaceCredentialType == ExternalCredentialType.SteamSessionTicket)
             {
                 usingSteamworks = true;
-                StartCoroutine(WaitForSteam());
+                
             }
             else
             {
                 EOSSDKComponent.Initialize();
             }
         }
-
-        private IEnumerator WaitForSteam()
-        {
-            yield return new WaitUntil(() => SteamManager.Initialized);
-
-            EOSSDKComponent.DisplayName = SteamManager.UserData.SteamUsername;
-            
-            byte[] ticketBytes = new byte[1024];
-            SteamNetworkingIdentity sni = new();
-            sni.SetSteamID(SteamManager.UserData.SteamID);
-            var authTicket = SteamUser.GetAuthSessionTicket(ticketBytes, ticketBytes.Length, out uint ticketSize, ref sni);
-            Array.Resize(ref ticketBytes, (int)ticketSize);
-            StringBuilder sb = new();
-            foreach (byte b in ticketBytes)
-            {
-                sb.AppendFormat("{0:x2}", b);
-            }
-            string ticket = sb.ToString();
-            EOSSDKComponent.SetConnectInterfaceCredentialToken(ticket);
-            EOSSDKComponent.Initialize();
-        }
-
+        
         private void OnApplicationQuit()
         {
             if (usingSteamworks)

@@ -75,7 +75,7 @@ public class LoginManager : MonoBehaviour
         if (Application.isEditor)
             MonkeLogger.Log("You are on the editor! Please wait 15 seconds to eliminate ticket invalidation.");
         
-        yield return new WaitForSeconds(Application.isEditor ? 15f : 5f);
+        yield return new WaitForSeconds(Application.isEditor ? 10f : 5f);
 
         yield return new WaitUntil(() => SteamInitalized);
         
@@ -123,6 +123,7 @@ public class LoginManager : MonoBehaviour
     private void OnLoginSuccess(LoginResult result)
     {
         UserData.LoadData(result);
+        PlayFabClientAPI.LinkCustomID(new LinkCustomIDRequest {CustomId = EOSSDKComponent.LocalUserProductIdString}, msg => { MonkeLogger.Log("Linked EOS PUID to PlayFab Custom ID!"); }, error => {});
     }
 
     private void OnLoginError(PlayFabError error)

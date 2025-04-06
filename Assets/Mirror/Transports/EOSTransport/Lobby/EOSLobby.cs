@@ -1,3 +1,4 @@
+using System.Collections;
 using EpicTransport;
 using Epic.OnlineServices.Lobby;
 using UnityEngine;
@@ -77,7 +78,15 @@ public class EOSLobby : MonoBehaviour {
     /// <summary>When invoked, a message is sent to all subscribers with information on the lobby that was updated.</summary>
     public event LobbyAttributeUpdate LobbyAttributeUpdated;
 
-    public virtual void Start() {
+    public virtual void Start()
+    {
+        StartCoroutine(StartEOS());
+    }
+
+    private IEnumerator StartEOS()
+    {
+        yield return new WaitUntil(() => EOSSDKComponent.EOSInterfaceReady);
+        
         var options = new AddNotifyLobbyMemberStatusReceivedOptions { };
 
         lobbyMemberStatusNotifyId = EOSSDKComponent.GetLobbyInterface().AddNotifyLobbyMemberStatusReceived(ref options, null, (ref LobbyMemberStatusReceivedCallbackInfo data) => {
@@ -99,9 +108,9 @@ public class EOSLobby : MonoBehaviour {
 
         var addNotifyLobbyUpdateReceivedOptions = new AddNotifyLobbyUpdateReceivedOptions { };
         lobbyAttributeUpdateNotifyId = EOSSDKComponent.GetLobbyInterface().AddNotifyLobbyUpdateReceived(ref addNotifyLobbyUpdateReceivedOptions, null,
-        (ref LobbyUpdateReceivedCallbackInfo callback) => {
-            LobbyAttributeUpdated?.Invoke(callback);
-        });
+            (ref LobbyUpdateReceivedCallbackInfo callback) => {
+                LobbyAttributeUpdated?.Invoke(callback);
+            });
     }
 
     /// <summary>

@@ -1,7 +1,4 @@
-using System;
-using System.Text;
-using EpicTransport;
-using TMPro;
+
 
 namespace Steamworks
 {
@@ -9,16 +6,23 @@ namespace Steamworks
 #if !(UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_STANDALONE_OSX || STEAMWORKS_WIN || STEAMWORKS_LIN_OSX)
 #define DISABLESTEAMWORKS
 #endif
-
-
-using System.Text.RegularExpressions;
-using UnityEngine;
-using System.IO;
+    
 #if !DISABLESTEAMWORKS
 using Steamworks;
 #endif
 
-using PallonAnticheat;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+using UnityEngine.Serialization;
+using System.Text.RegularExpressions;
+using UnityEngine;
+using System.IO;
+using System;
+using System.Text;
+using EpicTransport;
+using TMPro;using PallonAnticheat;
 using Constants = PallonAnticheat.Constants;
 
 
@@ -26,7 +30,10 @@ using Constants = PallonAnticheat.Constants;
 public class SteamManager : MonoBehaviour
 {
 #if !DISABLESTEAMWORKS
-    [SerializeField] private TMP_Text DebugText;
+    [SerializeField] private bool EOSLogin;
+    [FormerlySerializedAs("DebugText")]
+    [Space(20)]
+    [SerializeField] private TMP_Text SteamDebugText;
     
     public static string SteamID => UserData.s_SteamID; 
     public static userData UserData;
@@ -42,6 +49,7 @@ public class SteamManager : MonoBehaviour
         public string s_SteamID { get { return SteamID.m_SteamID.ToString(); } }
         public string SteamUsername;
         public string LanguageCode;
+        public AppId_t AppID;
 
         public readonly string GetSteamUsername()
         {
@@ -124,9 +132,22 @@ public class SteamManager : MonoBehaviour
         }
         s_instance = this;
 
-        DebugText.text = $"Logged In: {Initialized}\nSteam Username: null";
-        
-        steamAppIdPath = Application.persistentDataPath + "/steam_appid.txt";
+        SteamDebugText.text = $"Logged In: {Initialized}\nSteam Username: null\n\nApp ID: 000";
+
+        string steamAppIdPath;
+        string steamAppIdPrefix = "/steam_appid.txt";
+        if (Application.isEditor)
+        {
+            #if UNITY_EDITOR
+            steamAppIdPath = Path.GetDirectoryName(EditorApplication.applicationPath) + steamAppIdPrefix;
+#endif
+        }
+        else
+        {
+            steamAppIdPath = Application.dataPath.Substring(0, Application.dataPath.LastIndexOf('/')) + steamAppIdPrefix;
+        }
+       
+        MonkeLogger.Log($"Writing Steam app ID {PallonAnticheat.Constants.steamAppId} in path {steamAppIdPath}");
         //overwrites anything in steam app id file with app id
         File.WriteAllText(steamAppIdPath, PallonAnticheat.Constants.steamAppId);
 
@@ -161,7 +182,9 @@ public class SteamManager : MonoBehaviour
             // Once you get a Steam AppID assigned by Valve, you need to replace AppId_t.Invalid with it and
             // remove steam_appid.txt from the game depot. eg: "(AppId_t)480" or "new AppId_t(480)".
             // See the Valve documentation for more information: https://partner.steamgames.com/doc/sdk/api#initialization_and_shutdown
-            if (SteamAPI.RestartAppIfNecessary(AppId_t.Invalid))
+            
+            AppId_t Subterranea = new AppId_t(uint.Parse(PallonAnticheat.Constants.steamAppId));
+            if (SteamAPI.RestartAppIfNecessary(Subterranea))
             {
                 Application.Quit();
                 return;
@@ -273,15 +296,31 @@ public class SteamManager : MonoBehaviour
         UserData.SteamUsername = UserData.GetSteamUsername();
         UserData.SteamID = SteamUser.GetSteamID();
         UserData.LanguageCode = SteamApps.GetCurrentGameLanguage();
+        UserData.AppID = SteamUtils.GetAppID();
+        getTicket = Callback<GetTicketForWebApiResponse_t>.Create(OnAuthWebApiTicketLoaded);
         avatarLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarLoaded);
-        MonkeLogger.Log($"Authenticating with SteamID {UserData.s_SteamID}");
-        DebugText.text = $"Logged In: {Initialized}\nSteam Username: {UserData.SteamUsername}";
+        MonkeLogger.Log($"Authenticated with SteamID {UserData.s_SteamID} (Username: {UserData.SteamUsername}) Steam login is OK!");
+        
+        SteamDebugText.text = $"Logged In: {Initialized}" +
+                         $"\nSteam Username: {UserData.SteamUsername}" +
+                         $"\nSDK Running In App ID: {UserData.AppID.m_AppId.ToString()}";
+        
         LoginIntoEOS();
     }
 
     private void LoginIntoEOS()
     {
-        GetWebApiTicket();
+        if (EOSLogin)
+        {
+            MonkeLogger.Log("Logging into EOS with Steam. Requesting Web API Ticket");
+            GetWebApiTicket();
+        }
+    }
+    
+    private void GetWebApiTicket()
+    {
+        MonkeLogger.Log("Getting Web API Ticket.");
+        SteamUser.GetAuthTicketForWebApi("epiconlineservices");
     }
 
     private void RequestEOSLogin(string ticket)
@@ -289,14 +328,6 @@ public class SteamManager : MonoBehaviour
         MonkeLogger.Log($"Requesting a Steam login with EOS. Ticket: {ticket}");
         EOSSDKComponent.SetConnectInterfaceCredentialToken(ticket);
         EOSSDKComponent.Initialize();
-    }
-    
-    
-    private void GetWebApiTicket()
-    {
-        getTicket = Callback<GetTicketForWebApiResponse_t>.Create(OnAuthWebApiTicketLoaded);
-        SteamUser.GetAuthTicketForWebApi("epiconlineservices");
-        
     }
 
     private void OnAuthWebApiTicketLoaded(GetTicketForWebApiResponse_t callback)
@@ -307,12 +338,12 @@ public class SteamManager : MonoBehaviour
             return;
         }
         
+        MonkeLogger.Log("Received Web API Ticket successfully!");
+        
         byte[] bytes = callback.m_rgubTicket;
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         foreach (var b in bytes)
-        {
             sb.AppendFormat("{0:x2}", b);
-        }
         string ticket = sb.ToString();
         
         RequestEOSLogin(ticket);

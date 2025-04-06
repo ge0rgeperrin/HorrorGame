@@ -40,12 +40,9 @@ namespace PallonAnticheat
             PallonAnticheat.Logger.Log($"Log: [{level.ToString()}]: {log}");
         }
 
-        public static void LogException(System.Exception e, string action, bool dump = false)
+        public static void LogException(System.Exception e, string action)
         {
-            if (!dump)
-            {
-                Log(level: LogLevel.Error, $"There was a exception with action {action}! Error {e.Source}: {e.Message}, {e.StackTrace}: {e.InnerException}");
-            }
+            Log(level: LogLevel.Error, $"There was a exception with action {action}! Error {e.Source}: {e.Message}, {e.StackTrace}: {e.InnerException}");
         }
 
         public static void LogAssert(string log, bool condition)

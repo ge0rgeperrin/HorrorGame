@@ -33,7 +33,6 @@ namespace EpicTransport {
         public float ignoreCachedMessagesAtStartUpInSeconds = 2.0f;
         private float ignoreCachedMessagesTimer = 0.0f;
 
-        public RelayControl relayControl = RelayControl.AllowRelays;
 
         [Header("Info")]
         [Tooltip("This will display your Epic Account ID when you start or connect to a server.")]
@@ -313,7 +312,7 @@ namespace EpicTransport {
             }
 
             SetRelayControlOptions setRelayControlOptions = new SetRelayControlOptions();
-            setRelayControlOptions.RelayControl = relayControl;
+            setRelayControlOptions.RelayControl = RelayControl.ForceRelays;
 
             EOSSDKComponent.GetP2PInterface().SetRelayControl(ref setRelayControlOptions);
         }
