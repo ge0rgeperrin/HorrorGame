@@ -21,11 +21,6 @@ namespace PallonAnticheat
         /// <param name="log"></param>
         public static void Log(string log)
         {
-            if (Application.isEditor)
-            {
-                
-            }
-            
             using (StreamWriter writer = new StreamWriter(logFile, true))
             {
                 writer.WriteLine($"{PlayerManager.LocalDateTimeNow:hh:mm:ss tt}: {log}");
@@ -40,12 +35,12 @@ namespace PallonAnticheat
         /// <summary> Configures the Logger. </summary>
         public static void ConfigureLogger()
         {
-            logName = $"monkeymischief_log_{PlayerManager.LocalDateTimeNow:yyyy-MM-dd_hh-mm-ss-tt}";
-            logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Application.dataPath : Application.persistentDataPath).FullName, "Logs");
-            logFile = $"{logFolder}/{logName}.txt";
-
             try
             {
+                logName = $"{UnityEngine.Application.productName.ToLower()}_log_{PlayerManager.LocalDateTimeNow:yyyy-MM-dd_hh-mm-ss-tt}";
+                logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Application.dataPath : Application.persistentDataPath).FullName, "Logs");
+                logFile = $"{logFolder}/{logName}.txt";
+
                 if (!Directory.Exists(logFolder))
                 {
                     Directory.CreateDirectory(logFolder);

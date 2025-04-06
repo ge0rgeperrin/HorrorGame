@@ -13,6 +13,9 @@ namespace EpicTransport {
                     Debug.Log($"Epic Manager: Category - {message.Category} Message - {message.Message}");
                     break;
                 case LogLevel.Error:
+                    if (message.Message == "Failed to subclass window. Disabling overlay rendering")
+                        return;
+                    
                     Debug.LogError($"Epic Manager: Category - {message.Category} Message - {message.Message}");
                     break;
                 case LogLevel.Warning:

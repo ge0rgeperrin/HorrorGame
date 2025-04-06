@@ -1,3 +1,8 @@
+using System;
+using System.Text;
+using EpicTransport;
+using TMPro;
+
 namespace Steamworks
 {
     
@@ -21,9 +26,13 @@ using Constants = PallonAnticheat.Constants;
 public class SteamManager : MonoBehaviour
 {
 #if !DISABLESTEAMWORKS
+    [SerializeField] private TMP_Text DebugText;
+    
     public static string SteamID => UserData.s_SteamID; 
     public static userData UserData;
+    
     protected Callback<AvatarImageLoaded_t> avatarLoaded;
+    protected Callback<GetTicketForWebApiResponse_t> getTicket;
 
     [System.Serializable]
     public struct userData
@@ -115,6 +124,8 @@ public class SteamManager : MonoBehaviour
         }
         s_instance = this;
 
+        DebugText.text = $"Logged In: {Initialized}\nSteam Username: null";
+        
         steamAppIdPath = Application.persistentDataPath + "/steam_appid.txt";
         //overwrites anything in steam app id file with app id
         File.WriteAllText(steamAppIdPath, PallonAnticheat.Constants.steamAppId);
@@ -264,13 +275,56 @@ public class SteamManager : MonoBehaviour
         UserData.LanguageCode = SteamApps.GetCurrentGameLanguage();
         avatarLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarLoaded);
         MonkeLogger.Log($"Authenticating with SteamID {UserData.s_SteamID}");
+        DebugText.text = $"Logged In: {Initialized}\nSteam Username: {UserData.SteamUsername}";
+        LoginIntoEOS();
     }
 
+    private void LoginIntoEOS()
+    {
+        GetWebApiTicket();
+    }
+
+    private void RequestEOSLogin(string ticket)
+    {
+        MonkeLogger.Log($"Requesting a Steam login with EOS. Ticket: {ticket}");
+        EOSSDKComponent.SetConnectInterfaceCredentialToken(ticket);
+        EOSSDKComponent.Initialize();
+    }
+    
+    
+    private void GetWebApiTicket()
+    {
+        getTicket = Callback<GetTicketForWebApiResponse_t>.Create(OnAuthWebApiTicketLoaded);
+        SteamUser.GetAuthTicketForWebApi("epiconlineservices");
+        
+    }
+
+    private void OnAuthWebApiTicketLoaded(GetTicketForWebApiResponse_t callback)
+    {
+        if (callback.m_eResult != EResult.k_EResultOK)
+        {
+            MonkeLogger.Log(MonkeLogger.LogLevel.Error,$"Failed to get Web API ticket! Error: {callback.m_eResult}");
+            return;
+        }
+        
+        byte[] bytes = callback.m_rgubTicket;
+        StringBuilder sb = new StringBuilder();
+        foreach (var b in bytes)
+        {
+            sb.AppendFormat("{0:x2}", b);
+        }
+        string ticket = sb.ToString();
+        
+        RequestEOSLogin(ticket);
+    }
+    
     private void OnAvatarLoaded(AvatarImageLoaded_t callback)
     {
         MonkeLogger.Log("The Player's steam avatar has loaded!");
     }
 
+    #region Achievements
+    
     /// <summary> Achieves a achievement. </summary>
     public static void Achieve(string achievement)
     {
@@ -311,6 +365,8 @@ public class SteamManager : MonoBehaviour
 
     private static void SendAchievementDataToServer() => SteamUserStats.StoreStats();
 
+    #endregion
+    
     public static Texture2D GetSteamPFP(CSteamID steamID)
     {
         int iImage = SteamFriends.GetLargeFriendAvatar(steamID);

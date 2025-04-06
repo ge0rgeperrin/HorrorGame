@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 
 using Mirror;
+using Steamworks;
 
 /// <summary>
 /// Manages the Epic Online Services SDK
@@ -293,7 +294,6 @@ namespace EpicTransport {
             // Make sure to set up the logging interface as early as possible: after initializing.
             LoggingInterface.SetLogLevel(LogCategory.AllCategories, epicLoggerLevel);
             LoggingInterface.SetCallback((ref LogMessage message) => {
-                if (message.Message == "DeviceId access credentials already exist for the current user profile on the local device.") { return; }
                 Logger.EpicDebugLog(message);
             });
 
@@ -347,13 +347,18 @@ namespace EpicTransport {
                 };
 
                 EOS.GetAuthInterface().Login(ref loginOptions, null, OnAuthInterfaceLogin);
-            } else {
+            } 
+            else 
+            {
                 // Login to Connect Interface
-                if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.DeviceidAccessToken) {
+                if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.DeviceidAccessToken) 
+                {
                     Epic.OnlineServices.Connect.CreateDeviceIdOptions createDeviceIdOptions = new Epic.OnlineServices.Connect.CreateDeviceIdOptions();
                     createDeviceIdOptions.DeviceModel = deviceModel;
                     EOS.GetConnectInterface().CreateDeviceId(ref createDeviceIdOptions, null, OnCreateDeviceId);
-                } else {
+                } 
+                else 
+                {
                     ConnectInterfaceLogin();
                 }
             }
@@ -397,29 +402,42 @@ namespace EpicTransport {
         private void ConnectInterfaceLogin() {
             var loginOptions = new Epic.OnlineServices.Connect.LoginOptions();
 
-            if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.Epic) {
+            if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.Epic)
+            {
                 Epic.OnlineServices.Auth.Token? token;
                 var options = new Epic.OnlineServices.Auth.CopyUserAuthTokenOptions();
 
                 Result result = EOS.GetAuthInterface().CopyUserAuthToken(ref options, localUserAccountId, out token);
 
-                if (result == Result.Success) {
+                if (result == Result.Success) 
+                {
                     connectInterfaceCredentialToken = token?.AccessToken;
-                } else {
+                } else 
+                {
                     Debug.LogError("Failed to retrieve User Auth Token");
                 }
-            } else if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.DeviceidAccessToken) {
-                loginOptions.UserLoginInfo = new Epic.OnlineServices.Connect.UserLoginInfo() {
+            } 
+            
+            else if (connectInterfaceCredentialType == Epic.OnlineServices.ExternalCredentialType.DeviceidAccessToken) 
+            {
+                loginOptions.UserLoginInfo = new Epic.OnlineServices.Connect.UserLoginInfo() 
+                {
                     DisplayName = displayName,
                 };
-            }
+            } 
 
-            loginOptions.Credentials = new Epic.OnlineServices.Connect.Credentials() {
+            loginOptions.Credentials = new Epic.OnlineServices.Connect.Credentials() 
+            {
                 Type = connectInterfaceCredentialType,
                 Token = connectInterfaceCredentialToken,
             };
 
-
+            if (connectInterfaceCredentialType == ExternalCredentialType.SteamSessionTicket)
+            {
+                deviceModel = "Steam";
+                DisplayName = SteamManager.UserData.SteamUsername;
+            }
+            
             EOS.GetConnectInterface().Login(ref loginOptions, null, OnConnectInterfaceLogin);
         }
 
@@ -496,12 +514,12 @@ namespace EpicTransport {
 
         #region Keys
         // DO NOT SHARE OR SHOW ON VIDEO
-        private string epicProductName = "HorrorGame";
-        private string epicProductId = "3f55680075984cd8b9d129232829f200";
-        private string epicSandboxId = "4ba3c475d6084d0aa6c9e494331465cb";
-        private string epicDeploymentId = "4abb0e8ee14e4acebf765eb251153b55";
-        private string epicClientId = "xyza7891QN05c82B8T9N9AouWkYF56cz";
-        private string epicClientSecret = "sxjetFla+YzfO/e1FOJYAmuGKEIXD6btrk842sbbZRI";
+        private const string epicProductName = "Subterranea";
+        private const string epicProductId = "3f55680075984cd8b9d129232829f200";
+        private const string epicSandboxId = "4ba3c475d6084d0aa6c9e494331465cb";
+        private const string epicDeploymentId = "4abb0e8ee14e4acebf765eb251153b55";
+        private const string epicClientId = "xyza7891QN05c82B8T9N9AouWkYF56cz";
+        private const string epicClientSecret = "sxjetFla+YzfO/e1FOJYAmuGKEIXD6btrk842sbbZRI";
         #endregion
     }
 }

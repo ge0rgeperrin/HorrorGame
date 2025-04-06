@@ -572,6 +572,40 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 477715109}
   m_CullTransparentMesh: 1
+--- !u!1 &488385710
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 488385711}
+  m_Layer: 0
+  m_Name: Environment
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &488385711
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 488385710}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1752775268}
+  - {fileID: 963194228}
+  - {fileID: 1125012338}
+  m_Father: {fileID: 0}
+  m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &642603281
 GameObject:
   m_ObjectHideFlags: 0
@@ -601,7 +635,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 3
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &718239148
 GameObject:
@@ -839,7 +873,7 @@ GameObject:
   - component: {fileID: 830107232}
   - component: {fileID: 830107231}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: debug
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1044,8 +1078,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 2
+  m_Father: {fileID: 488385711}
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &963194229
 MonoBehaviour:
@@ -1140,13 +1174,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1125012335}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_Father: {fileID: 488385711}
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1533117104
 GameObject:
@@ -1741,8 +1775,8 @@ RectTransform:
   - {fileID: 1533117105}
   - {fileID: 1736484518}
   - {fileID: 1623791102}
-  m_Father: {fileID: 0}
-  m_RootOrder: 4
+  m_Father: {fileID: 488385711}
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -1760,7 +1794,7 @@ GameObject:
   - component: {fileID: 2039306797}
   - component: {fileID: 2039306798}
   m_Layer: 0
-  m_Name: Steamworks
+  m_Name: Steam Manager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1773,13 +1807,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2039306796}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2113377982}
-  m_RootOrder: 0
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2039306798
 MonoBehaviour:
@@ -1793,6 +1827,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef4bffeda13d7a748973ff9204401c07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DebugText: {fileID: 830107231}
   steamAppIdPath: 
 --- !u!1 &2045654409
 GameObject:
@@ -1939,7 +1974,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2113377982}
   - component: {fileID: 2113377981}
-  - component: {fileID: 2113377985}
   - component: {fileID: 2113377989}
   - component: {fileID: 2113377988}
   - component: {fileID: 2113377987}
@@ -2010,30 +2044,10 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2039306797}
   - {fileID: 2121797462}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2113377985
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2113377980}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5851b7d97879bac49bcdc5a9f49e5fc4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  component: {fileID: 2113377989}
-  winEditorAuthInterface: 0
-  winEditorAuth: 3
-  winEditorConnect: 10
-  winPlayerAuthInterface: 0
-  winPlayerAuth: 7
-  winPlayerConnect: 18
 --- !u!114 &2113377986
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2083,7 +2097,7 @@ MonoBehaviour:
   timeout: 25
   maxFragments: 55
   ignoreCachedMessagesAtStartUpInSeconds: 2
-  relayControl: 1
+  relayControl: 2
 --- !u!114 &2113377989
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2096,12 +2110,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 09c2b9adb023e6547aa45a0e8bf5fcfc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  authInterfaceLogin: 1
-  authInterfaceCredentialType: 6
-  connectInterfaceCredentialType: 0
+  authInterfaceLogin: 0
+  authInterfaceCredentialType: 7
+  connectInterfaceCredentialType: 18
   deviceModel: PC Windows 64bit
   displayName: User
-  epicLoggerLevel: 200
+  epicLoggerLevel: 500
   collectPlayerMetrics: 0
   checkForEpicLauncherAndRestart: 0
   delayedInitialization: 1
@@ -2139,7 +2153,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2113377982}
-  m_RootOrder: 1
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2121797463
 MonoBehaviour:

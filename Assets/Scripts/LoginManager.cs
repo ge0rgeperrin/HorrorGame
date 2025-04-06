@@ -23,9 +23,35 @@ public class LoginManager : MonoBehaviour
     public static bool LoggedIn;
     public static bool SteamInitalized => SteamManager.Initialized;
 
-    public static bool IsOnPC;
-    public static bool IsOnQuest;
-    
+    public static bool IsOnPC
+    {
+        get
+        {
+#if PLATFORM_STANDALONE_WIN
+            return true;
+#else
+            return false;
+#endif
+        }
+    }
+
+    public static bool IsOnQuest
+    {
+        get
+        {
+#if UNITY_ANDROID
+        return true;
+#else
+            return false;
+#endif
+        }
+    }
+
+    private void Awake()
+    {
+        PallonAnticheat.Logger.ConfigureLogger();
+    }
+
     private void Start()
     {
         Instance = this;
@@ -42,9 +68,13 @@ public class LoginManager : MonoBehaviour
     
     private IEnumerator AuthenticateWithSteam()
     {
+        yield return new WaitUntil(() => EOSSDKComponent.Initialized);
+        
+        MonkeLogger.Log("Logging in with PlayFab. EOS has been initalized.");
+        
         if (Application.isEditor)
             MonkeLogger.Log("You are on the editor! Please wait 15 seconds to eliminate ticket invalidation.");
-
+        
         yield return new WaitForSeconds(Application.isEditor ? 15f : 5f);
 
         yield return new WaitUntil(() => SteamInitalized);
