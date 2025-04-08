@@ -1,6 +1,6 @@
 {
 	"enable": false,
-	"callbackOrder": 5005,
+	"callbackOrder": 5678,
 	"logInfo": true,
 	"inter": {
 		"removeStringLiterals": true,
