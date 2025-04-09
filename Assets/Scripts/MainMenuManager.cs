@@ -1,18 +1,24 @@
+using System;
 using System.Collections;
-using System.Collections.Generic;
+using Subterranea;
 using UnityEngine;
 
 public class MainMenuManager : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    public static MainMenuManager Instance;
+
+    private void Start()
     {
-        
+        Instance = this;
+        StartCoroutine(MainMenuSequence());
     }
 
-    // Update is called once per frame
-    void Update()
+    private IEnumerator MainMenuSequence()
     {
-        
+        PlayMenu.SetActive(false);
+        yield return new WaitUntil(() => LoginManager.LoggedIn);
+        PlayMenu.SetActive(true);
     }
+
+    public GameObject PlayMenu;
 }

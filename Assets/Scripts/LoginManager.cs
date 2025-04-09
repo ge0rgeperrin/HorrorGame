@@ -1,3 +1,5 @@
+using TMPro;
+
 namespace Subterranea
 {
     using System;
@@ -15,13 +17,14 @@ public class LoginManager : MonoBehaviour
 {
     public static LoginManager Instance { get; private set; }
 
+    public TMP_Text DebugText;
+    
     public static string SUID => UserData.SUID;
     
     public static userData UserData;
     public static helper Helpers;
 
     public static bool LoggedIn;
-    public static bool SteamInitalized => SteamManager.Initialized;
 
     public static bool IsOnPC
     {
@@ -60,6 +63,8 @@ public class LoginManager : MonoBehaviour
 
     private void DecideAuthentication()
     {
+        LoggedIn = false;
+        
         if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer)
         {
             StartCoroutine(AuthenticateWithSteam());
@@ -68,16 +73,22 @@ public class LoginManager : MonoBehaviour
     
     private IEnumerator AuthenticateWithSteam()
     {
+        DebugText.text = "Logging in... (1/3)";
+        yield return new WaitUntil(() => SteamManager.Initialized);
+        
+        DebugText.text = "Logging in... (2/3)";
         yield return new WaitUntil(() => EOSSDKComponent.Initialized);
+        DebugText.text = "Logging in... (3/3)";
+
+        yield return new WaitForSeconds(2f);
+        DebugText.text = "Validating...";
         
         MonkeLogger.Log("Logging in with PlayFab. EOS has been initalized.");
         
         if (Application.isEditor)
-            MonkeLogger.Log("You are on the editor! Please wait 15 seconds to eliminate ticket invalidation.");
+            MonkeLogger.Log("You are on the editor! Please wait 10 seconds to eliminate ticket invalidation.");
         
         yield return new WaitForSeconds(Application.isEditor ? 10f : 5f);
-
-        yield return new WaitUntil(() => SteamInitalized);
         
         if (!SteamManager.Initialized)
         {
@@ -122,13 +133,17 @@ public class LoginManager : MonoBehaviour
 
     private void OnLoginSuccess(LoginResult result)
     {
+        LoggedIn = true;
+        DebugText.text = string.Empty;
+        MonkeLogger.Log($"Successfully logged into Subterranea! SUID: {result.PlayFabId}");
+        
         UserData.LoadData(result);
         PlayFabClientAPI.LinkCustomID(new LinkCustomIDRequest {CustomId = EOSSDKComponent.LocalUserProductIdString}, msg => { MonkeLogger.Log("Linked EOS PUID to PlayFab Custom ID!"); }, error => {});
     }
 
     private void OnLoginError(PlayFabError error)
     {
-        
+        LoggedIn = false;
     }
 
     #region Title

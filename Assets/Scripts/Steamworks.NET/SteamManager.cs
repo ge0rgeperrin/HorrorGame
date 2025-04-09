@@ -31,7 +31,8 @@ public class SteamManager : MonoBehaviour
 {
 #if !DISABLESTEAMWORKS
     [SerializeField] private bool EOSLogin;
-    [FormerlySerializedAs("DebugText")]
+    [SerializeField] private bool DebugWebApiTicket;
+    
     [Space(20)]
     [SerializeField] private TMP_Text SteamDebugText;
     
@@ -46,7 +47,7 @@ public class SteamManager : MonoBehaviour
     {
         public CSteamID SteamID;
         /// <summary> The user's Steam ID in string format </summary>
-        public string s_SteamID { get { return SteamID.m_SteamID.ToString(); } }
+        public string s_SteamID => SteamID.m_SteamID.ToString();
         public string SteamUsername;
         public string LanguageCode;
         public AppId_t AppID;
@@ -325,7 +326,8 @@ public class SteamManager : MonoBehaviour
 
     private void RequestEOSLogin(string ticket)
     {
-        MonkeLogger.Log($"Requesting a Steam login with EOS. Ticket: {ticket}");
+        string ticketLog = (DebugWebApiTicket) ? $"Ticket is valid. Ticket: {ticket}" : "Ticket is valid.";
+        MonkeLogger.Log($"Requesting a Steam login with EOS. {ticketLog}");
         EOSSDKComponent.SetConnectInterfaceCredentialToken(ticket);
         EOSSDKComponent.Initialize();
     }

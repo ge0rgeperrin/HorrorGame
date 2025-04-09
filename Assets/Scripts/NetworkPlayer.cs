@@ -4,12 +4,11 @@ using UnityEngine;
 
 public class NetworkPlayer : NetworkBehaviour
 {
-    private GameObject offlineplayer;
+    private GameObject rig => PlayerController.Instance.gameObject;
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        
         PlayerController.Instance.Mesh.SetActive(false);
         GetComponentInChildren<CapsuleCollider>().enabled = false; 
     }
@@ -18,8 +17,8 @@ public class NetworkPlayer : NetworkBehaviour
     {
         if (isLocalPlayer)
         {
-            this.transform.position = offlineplayer.transform.position;
-            this.transform.rotation = offlineplayer.transform.rotation;
+            transform.position = rig.transform.position;
+            transform.rotation = rig.transform.rotation;
         }
     }
 }
