@@ -134,7 +134,7 @@ public class SteamManager : MonoBehaviour
 
         SteamDebugText.text = $"Logged In: {Initialized}\nSteam Username: null\n\nApp ID: 000";
 
-        string steamAppIdPath;
+        string steamAppIdPath = string.Empty;
         string steamAppIdPrefix = "/steam_appid.txt";
         if (Application.isEditor)
         {

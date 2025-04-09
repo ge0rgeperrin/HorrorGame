@@ -1,4 +1,5 @@
 using Mirror;
+using Subterranea;
 using UnityEngine;
 
 public class NetworkPlayer : NetworkBehaviour
@@ -8,9 +9,9 @@ public class NetworkPlayer : NetworkBehaviour
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        offlineplayer = GameObject.FindGameObjectWithTag("Player");
-        offlineplayer.GetComponent<FPSController>().Mesh.SetActive(false);
-        this.GetComponentInChildren<CapsuleCollider>().enabled = false; //we don't want to collide with our own player
+        
+        PlayerController.Instance.Mesh.SetActive(false);
+        GetComponentInChildren<CapsuleCollider>().enabled = false; 
     }
 
     private void Update()

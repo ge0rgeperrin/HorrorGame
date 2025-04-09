@@ -6,7 +6,7 @@ public class PlayerAudio : MonoBehaviour
 {
     public AudioSource Walk, Run;
 
-    void Update()
+    public void RunAudioLogic()
     {
         if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D))
         {

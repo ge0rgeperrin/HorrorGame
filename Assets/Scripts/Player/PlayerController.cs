@@ -1,56 +1,64 @@
-using System.Collections;
+using System;
+
+namespace Subterranea
+{
+    using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 
-public class FPSController : MonoBehaviour
+public class PlayerController : MonoBehaviour
 {
-    public static FPSController Instance;
+    public static PlayerController Instance;
+
+    public PlayerAudio playerAudio;
+    public CharacterController characterController;
+    
+    [Space(20)]
+    [Header("Player Movement")]
     
     public float walkingSpeed = 7.5f;
     public float runningSpeed = 11.5f;
     public float crouchSpeed = 3f;
     public float jumpSpeed = 8.0f;
-    public float gravity = 20.0f;
     public Camera playerCamera;
     public GameObject Mesh;
     public float lookSpeed = 2.0f;
     public float lookXLimit = 45.0f;
-    public GameObject Lockbutton;
-    private bool LockButtonVisable = true;
-    public CharacterController characterController;
-    Vector3 moveDirection = Vector3.zero;
-    float rotationX = 0;
+
+    [Space(20)] [Header("Item Interaction")]
+    public KeyCode itemInteractionKey = KeyCode.E;
+    public LayerMask itemMask;
+    public Transform pickupTarget;
+    public float pickupRange = 5f;
+
+    private float lerpSpeed = 15f;
+    private InteractableItem currentItem;
+    private bool holdingItem => currentItem != null;
 
     private Vector3 originalScale;
+    private const float gravity = 20.0f;
+    private bool cursorLocked = true;
+    Vector3 moveDirection = Vector3.zero;
+    float rotationX = 0;
+    
+    
 
-    [HideInInspector]
-    public bool canMove = true;
-
-    public void QuitGame()
-    {
-        Application.Quit();
-    }
+    [HideInInspector] public bool canMove = true;
 
     public void LockCursor()
     {
-        //Lock cursor
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        Lockbutton.SetActive(false);
-        LockButtonVisable = false;
+        cursorLocked = false;
     }
     void UnlockCursor()
     {
-        //unlock cursor
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        Lockbutton.SetActive(true);
-        LockButtonVisable = true;
+        cursorLocked = true;
     }
-
-
     void Start()
     {
         Instance = this;
@@ -60,24 +68,36 @@ public class FPSController : MonoBehaviour
         LockCursor();
     }
 
-    void Update()
+    private void Update()
     {
-        if (!LockButtonVisable)
+        playerAudio.RunAudioLogic();
+        
+        if (!cursorLocked)
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 UnlockCursor();
             }
         }
-        // We are grounded, so recalculate move direction based on axes
+        
+        CheckInput();
+        CheckItems();
+    }
+
+    private void FixedUpdate()
+    {
+        ItemPhysics();
+    }
+
+    private void CheckInput()
+    {
         Vector3 forward = transform.TransformDirection(Vector3.forward);
         Vector3 right = transform.TransformDirection(Vector3.right);
-
-        // Press Left Shift to run
+        
         bool isRunning = Input.GetKey(KeyCode.LeftShift);
-        // Press Left Control to crouch
         bool isCrouching = Input.GetKey(KeyCode.LeftControl);
-        if(isCrouching && !isRunning)
+        
+        if (isCrouching && !isRunning)
         {
             transform.localScale = new Vector3(originalScale.x, originalScale.y / 2);
         }
@@ -99,19 +119,14 @@ public class FPSController : MonoBehaviour
         {
             moveDirection.y = movementDirectionY;
         }
-
-        // Apply gravity. Gravity is multiplied by deltaTime twice (once here, and once below
-        // when the moveDirection is multiplied by deltaTime). This is because gravity should be applied
-        // as an acceleration (ms^-2)
+        
         if (!characterController.isGrounded)
         {
             moveDirection.y -= gravity * Time.deltaTime;
         }
-
-        // Move the controller
+        
         characterController.Move(moveDirection * Time.deltaTime);
-
-        // Player and Camera rotation
+        
         if (canMove)
         {
             rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
@@ -120,4 +135,37 @@ public class FPSController : MonoBehaviour
             transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
         }
     }
+
+    private void CheckItems()
+    {
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (holdingItem)
+            {
+                currentItem.rigidbody.useGravity = true;
+                currentItem = null;
+                return;
+            }
+
+            Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, itemMask))
+            {
+                currentItem = hit.rigidbody.GetComponent<InteractableItem>();
+                currentItem.rigidbody.useGravity = false;
+            }
+        }
+    }
+
+    private void ItemPhysics()
+    {
+        if (holdingItem)
+        {
+            Vector3 currentPos = currentItem.rigidbody.position;
+            Vector3 dir = pickupTarget.position - currentPos;
+
+            Vector3 newVelocity = dir.normalized * dir.magnitude * lerpSpeed;
+            currentItem.rigidbody.velocity = Vector3.Lerp(currentItem.rigidbody.velocity, newVelocity, Time.deltaTime * 10f);
+        }
+    }
+}
 }
