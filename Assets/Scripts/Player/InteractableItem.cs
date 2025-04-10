@@ -1,10 +1,12 @@
 using System;
+using PallonAnticheat;
 using Subterranea;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class InteractableItem : MonoBehaviour
 {
+    public Sprite slotDisplay;
     public new Rigidbody rigidbody;
 
     private void Start()
@@ -13,17 +15,17 @@ public class InteractableItem : MonoBehaviour
         {
             rigidbody = GetComponent<Rigidbody>();
         }
-
-        gameObject.layer = PlayerController.Instance.itemMask;
     }
 
-    private void Pickup()
+    public void Pickup()
     {
-        
+        MonkeLogger.Log($"Picked up item {gameObject.name}");
+        PlayerController.AddItemToInventory(this);
     }
 
-    private void Drop()
+    public void Drop()
     {
-        
+        MonkeLogger.Log($"Dropped up item {gameObject.name}");
+        PlayerController.DropItemFromInventory(this);
     }
 }

@@ -28,6 +28,9 @@ public class PlayerController : MonoBehaviour
     public float lookXLimit = 45.0f;
 
     [Space(20)] [Header("Item Interaction")]
+    
+    public List<InteractableItem> Inventory;
+    public List<ItemInventorySlot> InventorySlots;
     public KeyCode itemInteractionKey = KeyCode.E;
     public LayerMask itemMask;
     public Transform pickupTarget;
@@ -62,10 +65,13 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         Instance = this;
+        PallonAnticheat.Logger.ConfigureLogger();
         if (!characterController)
             characterController = GetComponent<CharacterController>();
         originalScale = transform.localScale;
         LockCursor();
+        
+        UpdateInventoryGraphic();
     }
 
     private void Update()
@@ -99,7 +105,7 @@ public class PlayerController : MonoBehaviour
         
         if (isCrouching && !isRunning)
         {
-            transform.localScale = new Vector3(originalScale.x, originalScale.y / 2);
+            transform.localScale = new Vector3(originalScale.x, 0.3f, originalScale.z);
         }
         else
         {
@@ -143,6 +149,7 @@ public class PlayerController : MonoBehaviour
             if (holdingItem)
             {
                 currentItem.rigidbody.useGravity = true;
+                currentItem.Drop();
                 currentItem = null;
                 return;
             }
@@ -152,6 +159,7 @@ public class PlayerController : MonoBehaviour
             {
                 currentItem = hit.rigidbody.GetComponent<InteractableItem>();
                 currentItem.rigidbody.useGravity = false;
+                currentItem.Pickup();
             }
         }
     }
@@ -162,9 +170,53 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 currentPos = currentItem.rigidbody.position;
             Vector3 dir = pickupTarget.position - currentPos;
-
             Vector3 newVelocity = dir.normalized * dir.magnitude * lerpSpeed;
             currentItem.rigidbody.velocity = Vector3.Lerp(currentItem.rigidbody.velocity, newVelocity, Time.deltaTime * 10f);
+        }
+    }
+
+    public static void AddItemToInventory(InteractableItem item)
+    {
+        if (!Instance.Inventory.Contains(item))
+        {
+            Instance.Inventory.Add(item);
+        }
+        
+        UpdateInventoryGraphic();
+    }
+    
+    public static void DropItemFromInventory(InteractableItem item)
+    {
+        if (Instance.Inventory.Contains(item))
+        {
+            Instance.Inventory.Remove(item);
+        }
+        
+        UpdateInventoryGraphic();
+    }
+
+    public static void UpdateInventoryGraphic()
+    {
+        for (int i = 0; i < Instance.InventorySlots.Count; i++)
+        {
+            ItemInventorySlot slot = Instance.InventorySlots[i];
+            InteractableItem itemInSlot = null;
+            
+            if (Instance.Inventory.Count >= 1)
+            {
+                itemInSlot = Instance.Inventory[i];
+            }
+            
+            if (itemInSlot != null)
+            {
+                slot.Backing.color = Color.red;
+                slot.Item.sprite = itemInSlot.slotDisplay;
+            }
+            else
+            {
+                slot.Backing.color = Color.white;
+                slot.Item.sprite = null;
+            }
         }
     }
 }

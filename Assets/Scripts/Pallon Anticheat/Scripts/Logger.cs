@@ -17,6 +17,8 @@ namespace PallonAnticheat
         private static string logFolder;
         private static string logFile;
 
+        private static bool loggerInit = false;
+
         /// <summary> Logs a line </summary>
         /// <param name="log"></param>
         public static void Log(string log)
@@ -37,14 +39,21 @@ namespace PallonAnticheat
         {
             try
             {
+                if (loggerInit)
+                {
+                    return;
+                }
+                
                 logName = $"{UnityEngine.Application.productName.ToLower()}_log_{PlayerManager.LocalDateTimeNow:yyyy-MM-dd_hh-mm-ss-tt}";
-                logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Application.dataPath : Application.persistentDataPath).FullName, "Logs");
+                logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Application.dataPath.Substring(0, Application.dataPath.LastIndexOf('/')) : Application.persistentDataPath).FullName, "Logs");
                 logFile = $"{logFolder}/{logName}.txt";
 
                 if (!Directory.Exists(logFolder))
                 {
                     Directory.CreateDirectory(logFolder);
                 }
+
+                loggerInit = true;
             }
             catch (Exception e)
             {
