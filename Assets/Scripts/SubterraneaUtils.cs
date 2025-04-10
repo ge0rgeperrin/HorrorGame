@@ -7,6 +7,8 @@ using UnityEngine.XR;
 
 public static class SubterraneaUtils
 {
+    public static Platform CurrentPlatform => GetPlatform();
+    
     private static Platform GetPlatform()
     {
         var platform = Application.platform;
