@@ -9,6 +9,11 @@ public class InteractableItem : MonoBehaviour
     public Sprite slotDisplay;
     public new Rigidbody rigidbody;
 
+    public string GetItemName()
+    {
+        return this.gameObject.name;
+    }
+    
     private void Start()
     {
         if (rigidbody != null)

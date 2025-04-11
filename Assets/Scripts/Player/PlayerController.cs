@@ -32,11 +32,14 @@ public class PlayerController : MonoBehaviour
     public List<InteractableItem> Inventory;
     public List<ItemInventorySlot> InventorySlots;
     public KeyCode itemInteractionKey = KeyCode.E;
+    public Color itemSlotSelectionColor;
     public LayerMask itemMask;
     public Transform pickupTarget;
     public float pickupRange = 5f;
 
-    private float lerpSpeed = 15f;
+    private float scroll;
+    private int selectedItemSlotIndex;
+    private float lerpSpeed = 50f;
     private InteractableItem currentItem;
     private bool holdingItem => currentItem != null;
 
@@ -86,6 +89,7 @@ public class PlayerController : MonoBehaviour
             }
         }
         
+        CheckInventoryScroll();
         CheckInput();
         CheckItems();
     }
@@ -99,13 +103,13 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 forward = transform.TransformDirection(Vector3.forward);
         Vector3 right = transform.TransformDirection(Vector3.right);
-        
+        scroll = Input.GetAxis("Mouse ScrollWheel");
         bool isRunning = Input.GetKey(KeyCode.LeftShift);
         bool isCrouching = Input.GetKey(KeyCode.LeftControl);
         
         if (isCrouching && !isRunning)
         {
-            transform.localScale = new Vector3(originalScale.x, 0.3f, originalScale.z);
+            transform.localScale = new Vector3(originalScale.x, 0.5f, originalScale.z);
         }
         else
         {
@@ -202,20 +206,65 @@ public class PlayerController : MonoBehaviour
             ItemInventorySlot slot = Instance.InventorySlots[i];
             InteractableItem itemInSlot = null;
             
-            if (Instance.Inventory.Count >= 1)
+            if (i < Instance.Inventory.Count)
             {
                 itemInSlot = Instance.Inventory[i];
             }
+
+            slot.item.sprite = null;
             
             if (itemInSlot != null)
             {
-                slot.Backing.color = Color.red;
-                slot.Item.sprite = itemInSlot.slotDisplay;
+                slot.itemOutline.enabled = true;
+                slot.itemOutline.effectColor = (i == Instance.selectedItemSlotIndex) ? Instance.itemSlotSelectionColor : Color.white;
+                slot.item.sprite = itemInSlot.slotDisplay;
+                slot.item.color = new Color(slot.item.color.r, slot.item.color.g, slot.item.color.b, 255f);
+                slot.itemName.text = itemInSlot.GetItemName();
             }
             else
             {
-                slot.Backing.color = Color.white;
-                slot.Item.sprite = null;
+                slot.itemOutline.enabled = true;
+                slot.itemOutline.effectColor = (i == Instance.selectedItemSlotIndex) ? Instance.itemSlotSelectionColor : Color.black;
+                slot.item.color = new Color(slot.item.color.r, slot.item.color.g, slot.item.color.b, 0f);
+                slot.itemName.text = string.Empty;
+            }
+        }
+    }
+
+    private void CheckInventoryScroll()
+    {
+        if (scroll != 0f)
+        {
+            int prevIndex = selectedItemSlotIndex;
+
+            if (scroll > 0f)
+            {
+                selectedItemSlotIndex--;
+            }
+            else if (scroll < 0f)
+            {
+                selectedItemSlotIndex++;
+            }
+
+            if (selectedItemSlotIndex < 0)
+            {
+                selectedItemSlotIndex = InventorySlots.Count - 1;
+            }
+            else if (selectedItemSlotIndex >= InventorySlots.Count)
+            {
+                selectedItemSlotIndex= 0;
+            }
+
+            if (selectedItemSlotIndex > InventorySlots.Count)
+            {
+                selectedItemSlotIndex = 0;
+            }
+
+            InventorySlots[selectedItemSlotIndex].itemOutline.effectColor = Instance.itemSlotSelectionColor;
+            
+            if (prevIndex != selectedItemSlotIndex)
+            {
+                UpdateInventoryGraphic();
             }
         }
     }
