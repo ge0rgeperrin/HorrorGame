@@ -24,6 +24,8 @@ namespace EpicTransport {
     public class EOSSDKComponent : MonoBehaviour
     {
         public TMP_Text EOSDebugText;
+
+        public EOSLobby eosLobby;
         
         [Space(20)]
         [Header("User Login")]
@@ -143,7 +145,7 @@ namespace EpicTransport {
         }
 
         protected static EOSSDKComponent instance;
-        protected static EOSSDKComponent Instance {
+        public static EOSSDKComponent Instance {
             get {
                 if (instance == null) {
                     return new GameObject("EOSSDKComponent").AddComponent<EOSSDKComponent>();
@@ -260,6 +262,8 @@ namespace EpicTransport {
 
             instance = this;
             DontDestroyOnLoad(instance);
+
+            eosLobby = gameObject.GetComponent<EOSLobby>();
 
 #if UNITY_EDITOR
             var libraryPath = "Assets/Mirror/Transports/EOSTransport/EOSSDK/" + Config.LibraryName;

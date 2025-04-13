@@ -43,9 +43,11 @@ namespace PallonAnticheat
                 {
                     return;
                 }
+
+                var path = Path.GetDirectoryName(Application.dataPath);
                 
                 logName = $"{UnityEngine.Application.productName.ToLower()}_log_{PlayerManager.LocalDateTimeNow:yyyy-MM-dd_hh-mm-ss-tt}";
-                logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Application.dataPath.Substring(0, Application.dataPath.LastIndexOf('/')) : Application.persistentDataPath).FullName, "Logs");
+                logFolder = Path.Combine(Directory.GetParent((LoginManager.IsOnPC || UnityEngine.Application.isEditor) ? Path.GetDirectoryName(Application.dataPath): Application.persistentDataPath).FullName, "Logs");
                 logFile = $"{logFolder}/{logName}.txt";
 
                 if (!Directory.Exists(logFolder))

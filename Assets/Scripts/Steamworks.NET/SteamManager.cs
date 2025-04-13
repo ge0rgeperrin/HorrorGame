@@ -1,5 +1,7 @@
 
 
+using System.Collections;
+
 namespace Steamworks
 {
     
@@ -36,21 +38,28 @@ public class SteamManager : MonoBehaviour
     [Space(20)]
     [SerializeField] private TMP_Text SteamDebugText;
     
-    public static string SteamID => UserData.s_SteamID; 
+    public static string SteamID => UserData.s_SteamID;
     public static userData UserData;
     
     protected Callback<AvatarImageLoaded_t> avatarLoaded;
     protected Callback<GetTicketForWebApiResponse_t> getTicket;
+    protected Callback<SteamRelayNetworkStatus_t> networkStatus;
 
     [System.Serializable]
     public struct userData
     {
+        /// <summary> The user's Steam ID </summary>
         public CSteamID SteamID;
         /// <summary> The user's Steam ID in string format </summary>
         public string s_SteamID => SteamID.m_SteamID.ToString();
         public string SteamUsername;
         public string LanguageCode;
         public AppId_t AppID;
+
+        public SteamRegionCode regionCode;
+        public Country country;
+        public Continent continent;
+        public ContinentCode continentCode;
 
         public readonly string GetSteamUsername()
         {
@@ -65,6 +74,29 @@ public class SteamManager : MonoBehaviour
             }
 
             return PlayerManager.DesperateFallback();
+        }
+        
+        public Texture2D GetSteamPFP()
+        {
+            int iImage = SteamFriends.GetLargeFriendAvatar(SteamID);
+            if (iImage == -1)
+            {
+                MonkeLogger.Log(level: MonkeLogger.LogLevel.Illegal, log: "Steam returned a PFP value of -1. This is illegal.");
+                return null;
+            }
+            if (SteamUtils.GetImageSize(iImage, out uint width, out uint height))
+            {
+                byte[] image = new byte[width * height * 4];
+
+                if (SteamUtils.GetImageRGBA(iImage, image, (int)(width * height * 4)))
+                {
+                    Texture2D texture = new((int)width, (int)height, TextureFormat.RGBA32, false, true);
+                    texture.LoadRawTextureData(image);
+                    texture.Apply();
+                    return texture;
+                }
+            }
+            return null;
         }
     }
     
@@ -145,7 +177,8 @@ public class SteamManager : MonoBehaviour
         }
         else
         {
-            steamAppIdPath = Application.dataPath.Substring(0, Application.dataPath.LastIndexOf('/')) + steamAppIdPrefix;
+            steamAppIdPath = Path.GetDirectoryName(Application.dataPath) + steamAppIdPrefix;
+            PallonAnticheat.Logger
         }
        
         MonkeLogger.Log($"Writing Steam app ID {PallonAnticheat.Constants.steamAppId} in path {steamAppIdPath}");
@@ -167,12 +200,12 @@ public class SteamManager : MonoBehaviour
 
         if (!Packsize.Test())
         {
-            Debug.LogError("[Steamworks.NET] Packsize Test returned false, the wrong version of Steamworks.NET is being run in this platform.", this);
+            MonkeLogger.Log(MonkeLogger.LogLevel.Error,"[Steamworks.NET] Packsize Test returned false, the wrong version of Steamworks.NET is being run in this platform.", this);
         }
 
         if (!DllCheck.Test())
         {
-            Debug.LogError("[Steamworks.NET] DllCheck Test returned false, One or more of the Steamworks binaries seems to be the wrong version.", this);
+            MonkeLogger.Log(MonkeLogger.LogLevel.Error,"[Steamworks.NET] DllCheck Test returned false, One or more of the Steamworks binaries seems to be the wrong version.", this);
         }
 
         try
@@ -193,8 +226,7 @@ public class SteamManager : MonoBehaviour
         }
         catch (System.DllNotFoundException e)
         { // We catch this exception here, as it will be the first occurrence of it.
-            Debug.LogError("[Steamworks.NET] Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\n" + e, this);
-
+            MonkeLogger.Log(MonkeLogger.LogLevel.Error,"[Steamworks.NET] Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\n" + e, this);
             Application.Quit();
             return;
         }
@@ -211,11 +243,11 @@ public class SteamManager : MonoBehaviour
         m_bInitialized = SteamAPI.Init();
         if (m_bInitialized)
         {
-            AssignUserValues();
+            OnSteamLogin();
         }
         if (!m_bInitialized)
         {
-            Debug.LogError("[Steamworks.NET] SteamAPI_Init() failed. Refer to Valve's documentation or the comment above this line for more information.", this);
+            MonkeLogger.Log(MonkeLogger.LogLevel.Error,"[Steamworks.NET] SteamAPI_Init() failed. Refer to Valve's documentation or the comment above this line for more information.", this);
 
             return;
         }
@@ -292,14 +324,23 @@ public class SteamManager : MonoBehaviour
 #endif 
 
 #if !DISABLESTEAMWORKS
+
+    private void OnSteamLogin()
+    {
+        SteamNetworkingUtils.InitRelayNetworkAccess();
+        AssignUserValues();
+    }
     private void AssignUserValues()
     {
         UserData.SteamUsername = UserData.GetSteamUsername();
         UserData.SteamID = SteamUser.GetSteamID();
         UserData.LanguageCode = SteamApps.GetCurrentGameLanguage();
         UserData.AppID = SteamUtils.GetAppID();
+        
         getTicket = Callback<GetTicketForWebApiResponse_t>.Create(OnAuthWebApiTicketLoaded);
         avatarLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarLoaded);
+        networkStatus = Callback<SteamRelayNetworkStatus_t>.Create(OnGetNetworkStatus);
+        
         MonkeLogger.Log($"Authenticated with SteamID {UserData.s_SteamID} (Username: {UserData.SteamUsername}) Steam login is OK!");
         
         SteamDebugText.text = $"Logged In: {Initialized}" +
@@ -307,6 +348,34 @@ public class SteamManager : MonoBehaviour
                          $"\nSDK Running In App ID: {UserData.AppID.m_AppId.ToString()}";
         
         LoginIntoEOS();
+    }
+
+    private void OnGetNetworkStatus(SteamRelayNetworkStatus_t callback)
+    {
+       MonkeLogger.Log("Retrieved network status!");
+       SteamNetworkingUtils.GetLocalPingLocation(out SteamNetworkPingLocation_t location);
+       StartCoroutine(LoadLocationInfo(location));
+    }
+
+    private IEnumerator LoadLocationInfo(SteamNetworkPingLocation_t location)
+    {
+        yield return new WaitForSeconds(3f);
+        SteamNetworkingUtils.ConvertPingLocationToString(ref location, out string locationInfo, 1024);
+        
+        if (string.IsNullOrEmpty(locationInfo))
+            yield return null;
+        
+        MonkeLogger.Log($"Location Info: {locationInfo}");
+        
+        UserData.regionCode = GetRegionCode(GetClosestRegionCode(locationInfo));
+        UserData.country = GetCountryFromRegionCode(UserData.regionCode);
+        UserData.continent = GetContinentFromCountry(UserData.country);
+        UserData.continentCode = GetContinentCode(UserData.continent);
+
+        if (UserData.continent != Continent.Area51)
+        {
+            MonkeLogger.Log($"Region Code: {UserData.regionCode}, Country: {UserData.country}, Continent: {UserData.continent}");
+        }
     }
 
     private void LoginIntoEOS()
@@ -424,6 +493,233 @@ public class SteamManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    public static string GetClosestRegionCode(string regionData)
+    {
+        string[] entries = regionData.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        string closestRegion = "";
+        int pingCompare = int.MaxValue;
+        
+        foreach (var entry in entries)
+        {
+            var parts = entry.Split("=");
+            string region = parts[0].Trim();
+            string pingData = parts[1].Split('+')[0]; 
+            if (int.TryParse(pingData, out int ping))
+            {
+                if (ping < pingCompare)
+                {
+                    pingCompare = ping;
+                    closestRegion = region.ToLower();
+                }
+            }
+            MonkeLogger.Log($"Closest region is {closestRegion}");
+            return closestRegion; 
+        }
+        return null;
+    }
+
+    public static SteamRegionCode GetRegionCode(string regionCode)
+    {
+        switch (regionCode)
+        {
+            case "lax":
+                return SteamRegionCode.LAX;
+            case "sea":
+                return SteamRegionCode.SEA;
+            case "iad":
+                return SteamRegionCode.IAD;
+            case "atl":
+                return SteamRegionCode.ATL;
+            case "ord":
+                return SteamRegionCode.ORD;
+            case "dfw":
+                return SteamRegionCode.DFW;
+            case "fra":
+                return SteamRegionCode.FRA;
+            case "ams":
+                return SteamRegionCode.AMS;
+            case "lhr":
+                return SteamRegionCode.LHR;
+            case "waw":
+                return SteamRegionCode.WAW;
+            case "gru":
+                return SteamRegionCode.GRU;
+            case "lim":
+                return SteamRegionCode.LIM;
+            case "tyo":
+                return SteamRegionCode.TYO;
+            case "sgp":
+                return SteamRegionCode.SGP;
+            case "hkg":
+                return SteamRegionCode.HKG;
+            case "syd":
+                return SteamRegionCode.SYD;
+            case "bom":
+                return SteamRegionCode.BOM;
+            case "jnb":
+                return SteamRegionCode.JNB;
+            default:
+                return SteamRegionCode.UNKNOWN;
+        }
+    }
+    
+    public static Country GetCountryFromRegionCode(SteamRegionCode regionCode)
+    {
+        switch (regionCode)
+        {
+            case SteamRegionCode.LAX:
+            case SteamRegionCode.SEA:
+                return Country.US_West;
+            case SteamRegionCode.IAD:
+            case SteamRegionCode.ATL:
+                return Country.US_East;
+            case SteamRegionCode.ORD:
+            case SteamRegionCode.DFW:
+                return Country.US_Central;
+            case SteamRegionCode.FRA:
+            case SteamRegionCode.AMS:
+            case SteamRegionCode.LHR:
+            case SteamRegionCode.WAW:
+                return Country.Europe;
+            case SteamRegionCode.GRU:
+            case SteamRegionCode.LIM:
+                return Country.South_America;
+            case SteamRegionCode.TYO:
+                return Country.Japan;
+            case SteamRegionCode.SGP:
+                return Country.Singapore;
+            case SteamRegionCode.HKG:
+                return Country.Hong_Kong;
+            case SteamRegionCode.SYD:
+                return Country.Australia;
+            case SteamRegionCode.BOM:
+                return Country.India;
+            case SteamRegionCode.JNB:
+                return Country.South_Africa;
+            default:
+                return Country.Unknown;
+        }
+    }
+
+    public static Continent GetContinentFromCountry(Country country)
+    {
+        switch (country)
+        {
+            case Country.US_West:
+                return Continent.North_America;    
+            case Country.US_Central:
+                return Continent.North_America;    
+            case Country.US_East:
+                return Continent.North_America;    
+            
+            case Country.South_America:
+                return Continent.South_America;
+            
+            case Country.Europe:
+                return Continent.Europe;
+            
+            case Country.Australia:
+                return Continent.Oceania;
+            
+            case Country.Japan:
+                return Continent.Asia;
+            case Country.Singapore:
+                return Continent.Asia;
+            case Country.Hong_Kong:
+                return Continent.Asia;
+            case Country.India:
+                return Continent.Asia;
+            
+            case Country.South_Africa:
+                return Continent.Africa;
+            
+            default:
+                return Continent.Area51;
+        }
+    }
+
+    public static ContinentCode GetContinentCode(Continent continent)
+    {
+        switch (continent)
+        {
+            case Continent.North_America:
+                return ContinentCode.NA;
+            case Continent.South_America:
+                return ContinentCode.SA;
+            case Continent.Africa:
+                return ContinentCode.AFR;
+            case Continent.Asia:
+                return ContinentCode.AS;
+            case Continent.Europe:
+                return ContinentCode.EU;
+            case Continent.Oceania:
+                return ContinentCode.OC;
+            default:
+                return ContinentCode.A51;
+        }
+    }
+
+    public enum Country
+    {
+        US_West,
+        US_East,
+        US_Central,
+        Europe,
+        South_America,
+        Japan,
+        Singapore,
+        Hong_Kong,
+        Australia,
+        India,
+        South_Africa,
+        Unknown
+    }
+
+    public enum Continent
+    {
+        North_America,
+        South_America,
+        Asia,
+        Europe,
+        Africa,
+        Oceania,
+        Area51,
+    }
+
+    public enum ContinentCode
+    {
+        NA,
+        SA,
+        AS,
+        EU,
+        AFR,
+        OC,
+        A51
+    }
+    
+    public enum SteamRegionCode
+    {
+        LAX,
+        SEA,
+        IAD,
+        ATL,
+        ORD,
+        DFW,
+        FRA,
+        AMS,
+        LHR,
+        WAW,
+        GRU,
+        LIM,
+        TYO,
+        SGP,
+        HKG,
+        SYD,
+        BOM,
+        JNB,
+        UNKNOWN
     }
 #endif
 }

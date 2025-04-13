@@ -27,6 +27,8 @@ public static class PlayerManager
     public static Color Color { get { return GetColor(); } set { SetColor(value); } }
 
     public static string InfoDump => GetInfoDump();
+    
+    
 
     /// <summary>
     /// Returns battery amount with percentage sign (%)

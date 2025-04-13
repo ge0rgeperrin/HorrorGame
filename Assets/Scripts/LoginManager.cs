@@ -85,10 +85,7 @@ public class LoginManager : MonoBehaviour
         
         MonkeLogger.Log("Logging in with PlayFab. EOS has been initalized.");
         
-        if (Application.isEditor)
-            MonkeLogger.Log("You are on the editor! Please wait 10 seconds to eliminate ticket invalidation.");
-        
-        yield return new WaitForSeconds(Application.isEditor ? 10f : 5f);
+        yield return new WaitForSeconds(5f);
         
         if (!SteamManager.Initialized)
         {
