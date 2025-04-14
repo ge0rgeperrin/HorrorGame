@@ -178,7 +178,6 @@ public class SteamManager : MonoBehaviour
         else
         {
             steamAppIdPath = Path.GetDirectoryName(Application.dataPath) + steamAppIdPrefix;
-            PallonAnticheat.Logger
         }
        
         MonkeLogger.Log($"Writing Steam app ID {PallonAnticheat.Constants.steamAppId} in path {steamAppIdPath}");
