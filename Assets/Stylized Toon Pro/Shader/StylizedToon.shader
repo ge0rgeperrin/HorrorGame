@@ -1,4 +1,4 @@
-// Made with Amplify Shader Editor
+// Made with Amplify Shader Editor v1.9.1.5
 // Available at the Unity Asset Store - http://u3d.as/y3X 
 Shader "Stylized Toon"
 {
@@ -83,8 +83,8 @@ Shader "Stylized Toon"
 		[Toggle(_USEADDITIONALLIGHTSDIFFUSE_ON)] _UseAdditionalLightsDiffuse("UseAdditional Lights", Float) = 1
 		_AdditionalLightsAmount("Additional Lights Size", Range( 0 , 1)) = 1
 		_AdditionalLightsFaloff("Additional Lights Falloff", Range( 0 , 1)) = 1
-		[KeywordEnum(None,Haftone,Hatching)] _OverlayMode("Overlay Mode", Float) = 0
 		_HatchingColor("Hatching Color", Color) = (0,0,0,1)
+		[KeywordEnum(None,Haftone,Hatching)] _OverlayMode("Overlay Mode", Float) = 0
 		[Toggle(_USEPURESKETCH_ON)] _UsePureSketch("Pure Sketch", Float) = 1
 		_UVAnimationSpeedWarp("UV Animation Speed", Range( 0 , 5)) = 0
 		_UVAnimationSpeedSpec("UV Animation Speed", Range( 0 , 5)) = 0
@@ -120,12 +120,20 @@ Shader "Stylized Toon"
 		_PaperTilling("Paper Tiling", Float) = 1
 		[ASEEnd][NoScaleOffset]_PaperTexture("Paper Texture", 2D) = "white" {}
 
+
 		//_TessPhongStrength( "Tess Phong Strength", Range( 0, 1 ) ) = 0.5
 		//_TessValue( "Tess Max Tessellation", Range( 1, 32 ) ) = 16
 		//_TessMin( "Tess Min Distance", Float ) = 10
 		//_TessMax( "Tess Max Distance", Float ) = 25
 		//_TessEdgeLength ( "Tess Edge length", Range( 2, 50 ) ) = 16
 		//_TessMaxDisp( "Tess Max Displacement", Float ) = 25
+
+		[HideInInspector] _QueueOffset("_QueueOffset", Float) = 0
+        [HideInInspector] _QueueControl("_QueueControl", Float) = -1
+
+        [HideInInspector][NoScaleOffset] unity_Lightmaps("unity_Lightmaps", 2DArray) = "" {}
+        [HideInInspector][NoScaleOffset] unity_LightmapsInd("unity_LightmapsInd", 2DArray) = "" {}
+        [HideInInspector][NoScaleOffset] unity_ShadowMasks("unity_ShadowMasks", 2DArray) = "" {}
 	}
 
 	SubShader
@@ -133,16 +141,21 @@ Shader "Stylized Toon"
 		LOD 0
 
 		
-		Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry" }
-		
+
+		Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry" "UniversalMaterialType"="Unlit" }
+
 		Cull Back
 		AlphaToMask Off
-		
-		HLSLINCLUDE
-		#pragma target 3.0
 
+		
+
+		HLSLINCLUDE
+		#pragma target 3.5
 		#pragma prefer_hlslcc gles
-		#pragma exclude_renderers d3d11_9x 
+		// ensure rendering platforms toggle list is visible
+
+		#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+		#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Filtering.hlsl"
 
 		#ifndef ASE_TESS_FUNCS
 		#define ASE_TESS_FUNCS
@@ -150,7 +163,7 @@ Shader "Stylized Toon"
 		{
 			return tessValue;
 		}
-		
+
 		float CalcDistanceTessFactor (float4 vertex, float minDist, float maxDist, float tess, float4x4 o2w, float3 cameraPos )
 		{
 			float3 wpos = mul(o2w,vertex).xyz;
@@ -245,15 +258,14 @@ Shader "Stylized Toon"
 			return tess;
 		}
 		#endif //ASE_TESS_FUNCS
-
 		ENDHLSL
 
 		
 		Pass
 		{
-			Name "Outline"
+			Name "ExtraPrePass"
 			
-			
+
 			Blend One Zero
 			Cull Front
 			ZWrite On
@@ -263,16 +275,12 @@ Shader "Stylized Toon"
 			
 
 			HLSLPROGRAM
-			
-			#pragma multi_compile _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_instancing
-			#pragma multi_compile _ DOTS_INSTANCING_ON
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _ALPHATEST_ON 1
-			#define ASE_SRP_VERSION 100501
 
-			
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
 			#pragma vertex vert
 			#pragma fragment frag
 
@@ -282,17 +290,14 @@ Shader "Stylized Toon"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 
-			#if ASE_SRP_VERSION <= 70108
-			#define REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR
-			#endif
-
 			#define ASE_NEEDS_VERT_NORMAL
 			#define ASE_NEEDS_VERT_POSITION
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
 			#pragma shader_feature_local _USEOUTLINE_ON
 			#pragma shader_feature_local _USEDYNAMICOUTLINE_ON
 			#pragma shader_feature_local _OUTLINETYPE_NORMAL _OUTLINETYPE_POSITION _OUTLINETYPE_UVBAKED
-			#pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-			#pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
 
 
 			struct VertexInput
@@ -308,13 +313,13 @@ Shader "Stylized Toon"
 			{
 				float4 clipPos : SV_POSITION;
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 worldPos : TEXCOORD0;
+					float3 worldPos : TEXCOORD0;
 				#endif
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
-				float4 shadowCoord : TEXCOORD1;
+					float4 shadowCoord : TEXCOORD1;
 				#endif
 				#ifdef ASE_FOG
-				float fogFactor : TEXCOORD2;
+					float fogFactor : TEXCOORD2;
 				#endif
 				float4 ase_texcoord3 : TEXCOORD3;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -322,58 +327,77 @@ Shader "Stylized Toon"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _RimShadowColor;
 			float4 _RimColor;
-			float4 _HalftoneColor;
 			float4 _ShadowColor;
 			float4 _Color;
 			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
 			float4 _SpecColor;
 			float4 _EmissionColor;
+			float4 _HalftoneColor;
 			float4 _HatchingColor;
 			float4 _OutlineColor;
-			float _SpecularPosterizeSteps;
-			float _HaltonePatternSize;
-			float _SpecularMaskRotation;
-			float _UVSrcrollAngleSpec;
-			float _UVScrollSpeedSpec;
-			float _UVAnimationSpeedSpec;
-			float _SpecularMaskScale;
+			float _Darken;
 			float _StepHalftoneTexture;
-			float _AdditionalLightsIntesity;
-			float _SpecularMaskStrength;
-			float _SmoothnessMultiplier;
+			float _Lighten;
 			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
 			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
 			float _UseSpecularMask;
 			float _RampDiffuseTextureLoaded;
-			float _Strength;
-			float _Lighten;
-			float _Darken;
-			float _IndirectLightAffectOnHatch;
-			float _UseEmission;
-			float _SideShineAmount;
-			float _SideShineHardness;
-			float _SpecularShadowMask;
-			float _SideShineIntensity;
-			float _BacklightHardness;
-			float _BacklightIntensity;
-			float _RimPower;
-			float _RimThickness;
-			float _RimSmoothness;
-			float _AdditionalLightsSmoothnessMultiplier;
-			float _BacklightAmount;
-			float _Glossiness;
-			float _UVSrcrollAngle;
-			float _UVAnimationSpeed;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
 			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
 			float _UVAnimationSpeedWarp;
 			float _UVSrcrollAngleWarp;
 			float _UVScrollSpeedWarp;
 			float _WarpTextureScale;
-			float _UseDiffuseWarp;
-			float _StepOffset;
-			float _Cutoff;
 			float _OcclusionStrength;
 			float _OutlineTextureStrength;
 			float _Thicnkess;
@@ -381,28 +405,9 @@ Shader "Stylized Toon"
 			float _OutlineNoiseScale;
 			float _OutlineDynamicSpeed;
 			float _AdaptiveThicnkess;
-			float _WarpStrength;
-			float _OverlayRotation;
-			float _NormalMapStrength;
-			float _DiffuseWarpBrightnessOffset;
-			float _MaxScaleDependingOnCamera;
-			float _UVScrollSpeed;
-			float _OverlayUVTilling;
-			float _HalftoneSmoothness;
-			float _HalftoneEdgeOffset;
-			float _HalftoneThreshold;
-			float _ShapeSmoothness;
-			float _HalftoneToonAffect;
-			float _IndirectLightStrength;
-			float _AdditionalLightsFaloff;
 			float _AdditionalLightsAmount;
-			float _DiffusePosterizeSteps;
-			float _DiffusePosterizePower;
-			float _DiffusePosterizeOffset;
-			float _LightRampOffset;
-			float _UseShadows;
-			float _PaperTilling;
-			#ifdef TESSELLATION_ON
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -411,6 +416,10 @@ Shader "Stylized Toon"
 				float _TessMaxDisp;
 			#endif
 			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
 			sampler2D _MainTex;
 			sampler2D _OcclusionMap;
 
@@ -451,7 +460,7 @@ Shader "Stylized Toon"
 				UNITY_TRANSFER_INSTANCE_ID(v, o);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-				float3 ase_worldPos = mul(GetObjectToWorldMatrix(), v.vertex).xyz;
+				float3 ase_worldPos = TransformObjectToWorld( (v.vertex).xyz );
 				float lerpResult59 = lerp( 1.0 , distance( _WorldSpaceCameraPos , ase_worldPos ) , _AdaptiveThicnkess);
 				#if defined(_OUTLINETYPE_NORMAL)
 				float3 staticSwitch57 = v.ase_normal;
@@ -481,39 +490,47 @@ Shader "Stylized Toon"
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
 				o.ase_texcoord3.zw = 0;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = v.vertex.xyz;
 				#else
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
+
 				float3 vertexValue = staticSwitch365;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					v.vertex.xyz = vertexValue;
 				#else
 					v.vertex.xyz += vertexValue;
 				#endif
+
 				v.ase_normal = v.ase_normal;
 
 				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
 				float4 positionCS = TransformWorldToHClip( positionWS );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				o.worldPos = positionWS;
+					o.worldPos = positionWS;
 				#endif
+
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
-				VertexPositionInputs vertexInput = (VertexPositionInputs)0;
-				vertexInput.positionWS = positionWS;
-				vertexInput.positionCS = positionCS;
-				o.shadowCoord = GetShadowCoord( vertexInput );
+					VertexPositionInputs vertexInput = (VertexPositionInputs)0;
+					vertexInput.positionWS = positionWS;
+					vertexInput.positionCS = positionCS;
+					o.shadowCoord = GetShadowCoord( vertexInput );
 				#endif
+
 				#ifdef ASE_FOG
-				o.fogFactor = ComputeFogFactor( positionCS.z );
+					o.fogFactor = ComputeFogFactor( positionCS.z );
 				#endif
+
 				o.clipPos = positionCS;
+
 				return o;
 			}
 
-			#if defined(TESSELLATION_ON)
+			#if defined(ASE_TESSELLATION)
 			struct VertexControl
 			{
 				float4 vertex : INTERNALTESSPOS;
@@ -602,8 +619,9 @@ Shader "Stylized Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX( IN );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 WorldPosition = IN.worldPos;
+					float3 WorldPosition = IN.worldPos;
 				#endif
+
 				float4 ShadowCoords = float4( 0, 0, 0, 0 );
 
 				#if defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
@@ -613,6 +631,7 @@ Shader "Stylized Toon"
 						ShadowCoords = TransformWorldToShadowCoord( WorldPosition );
 					#endif
 				#endif
+
 				float2 uv_OcclusionMap = IN.ase_texcoord3.xy * _OcclusionMap_ST.xy + _OcclusionMap_ST.zw;
 				float4 tex2DNode362 = tex2D( _MainTex, uv_OcclusionMap );
 				float4 lerpResult1448 = lerp( float4( 1,1,1,0 ) , tex2DNode362 , _OutlineTextureStrength);
@@ -627,9 +646,10 @@ Shader "Stylized Toon"
 				float staticSwitch1349 = -2.0;
 				#endif
 				
+
 				float3 Color = ( _OutlineColor * lerpResult1448 ).rgb;
-				float Alpha = staticSwitch1349;
-				float AlphaClipThreshold = _Cutoff;
+				float Alpha = 1;
+				float AlphaClipThreshold = staticSwitch1349;
 
 				#ifdef _ALPHATEST_ON
 					clip( Alpha - AlphaClipThreshold );
@@ -645,7 +665,6 @@ Shader "Stylized Toon"
 
 				return half4( Color, Alpha );
 			}
-
 			ENDHLSL
 		}
 
@@ -654,51 +673,60 @@ Shader "Stylized Toon"
 		{
 			
 			Name "Forward"
-			Tags { "LightMode"="UniversalForward" }
-			
+			Tags { "LightMode"="UniversalForwardOnly" }
+
 			Blend One Zero, One Zero
 			ZWrite On
 			ZTest LEqual
 			Offset 0 , 0
 			ColorMask RGBA
+
 			
 
 			HLSLPROGRAM
-			
-			#pragma multi_compile _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_instancing
-			#pragma multi_compile _ DOTS_INSTANCING_ON
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _ALPHATEST_ON 1
-			#define ASE_SRP_VERSION 100501
 
-			
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
+			#pragma multi_compile _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
+
+			#pragma multi_compile _ LIGHTMAP_ON
+			#pragma multi_compile _ DIRLIGHTMAP_COMBINED
+			#pragma shader_feature _ _SAMPLE_GI
+			#pragma multi_compile _ DEBUG_DISPLAY
+
 			#pragma vertex vert
 			#pragma fragment frag
 
+			#define SHADERPASS SHADERPASS_UNLIT
+
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DBuffer.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
 
-			#if ASE_SRP_VERSION <= 70108
-			#define REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR
-			#endif
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Debug/Debugging3D.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Input.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceData.hlsl"
 
 			#define ASE_NEEDS_VERT_NORMAL
 			#define ASE_NEEDS_FRAG_WORLD_POSITION
 			#define ASE_NEEDS_FRAG_SHADOWCOORDS
 			#define ASE_NEEDS_FRAG_POSITION
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
 			#pragma shader_feature_local _OVERLAYMODE_NONE _OVERLAYMODE_HAFTONE _OVERLAYMODE_HATCHING
 			#pragma shader_feature_local _USELIGHTRAMP_STEP _USELIGHTRAMP_DIFFUSERAMP _USELIGHTRAMP_POSTERIZE
 			#pragma shader_feature_local _USESCREENUVSWARP_ON
 			#pragma shader_feature_local _USEADAPTIVESCREENUVSWARP_ON
-			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
 			#pragma shader_feature_local _USEADDITIONALLIGHTSDIFFUSE_ON
-			#pragma multi_compile _ DIRLIGHTMAP_COMBINED
-			#pragma multi_compile _ LIGHTMAP_ON
 			#pragma multi_compile _ _MIXED_LIGHTING_SUBTRACTIVE
 			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS
 			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
@@ -706,9 +734,7 @@ Shader "Stylized Toon"
 			#pragma shader_feature_local _DIFFUSEWARPAFFECTHALFTONE_ON
 			#pragma shader_feature_local _USESCREENUVS_ON
 			#pragma shader_feature_local _USEADAPTIVESCREENUVS_ON
-			#pragma shader_feature_local _USESPECULAR_ON
 			#pragma shader_feature_local _INVERSEMASK_ON
-			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
 			#pragma shader_feature_local _USEADAPTIVEUVSSPECULAR_ON
 			#pragma shader_feature_local _OVERLAYMODE1_NONE _OVERLAYMODE1_HAFTONE _OVERLAYMODE1_HATCHING
 			#pragma shader_feature_local _USEENVIRONMENTREFLETION_ON
@@ -717,10 +743,6 @@ Shader "Stylized Toon"
 			#pragma shader_feature_local _USEBACKLIGHT_ON
 			#pragma shader_feature_local _USEPURESKETCH_ON
 			#pragma shader_feature_local _USEHATCHINGCONSTANTSCALE_ON
-			#define SHADOWS_SHADOWMASK 
-			#define LIGHTMAP_SHADOW_MIXING
-			#pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-			#pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
 
 
 			struct VertexInput
@@ -737,13 +759,13 @@ Shader "Stylized Toon"
 			{
 				float4 clipPos : SV_POSITION;
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 worldPos : TEXCOORD0;
+					float3 worldPos : TEXCOORD0;
 				#endif
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
-				float4 shadowCoord : TEXCOORD1;
+					float4 shadowCoord : TEXCOORD1;
 				#endif
 				#ifdef ASE_FOG
-				float fogFactor : TEXCOORD2;
+					float fogFactor : TEXCOORD2;
 				#endif
 				float4 ase_texcoord3 : TEXCOORD3;
 				float4 ase_texcoord4 : TEXCOORD4;
@@ -757,58 +779,77 @@ Shader "Stylized Toon"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _RimShadowColor;
 			float4 _RimColor;
-			float4 _HalftoneColor;
 			float4 _ShadowColor;
 			float4 _Color;
 			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
 			float4 _SpecColor;
 			float4 _EmissionColor;
+			float4 _HalftoneColor;
 			float4 _HatchingColor;
 			float4 _OutlineColor;
-			float _SpecularPosterizeSteps;
-			float _HaltonePatternSize;
-			float _SpecularMaskRotation;
-			float _UVSrcrollAngleSpec;
-			float _UVScrollSpeedSpec;
-			float _UVAnimationSpeedSpec;
-			float _SpecularMaskScale;
+			float _Darken;
 			float _StepHalftoneTexture;
-			float _AdditionalLightsIntesity;
-			float _SpecularMaskStrength;
-			float _SmoothnessMultiplier;
+			float _Lighten;
 			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
 			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
 			float _UseSpecularMask;
 			float _RampDiffuseTextureLoaded;
-			float _Strength;
-			float _Lighten;
-			float _Darken;
-			float _IndirectLightAffectOnHatch;
-			float _UseEmission;
-			float _SideShineAmount;
-			float _SideShineHardness;
-			float _SpecularShadowMask;
-			float _SideShineIntensity;
-			float _BacklightHardness;
-			float _BacklightIntensity;
-			float _RimPower;
-			float _RimThickness;
-			float _RimSmoothness;
-			float _AdditionalLightsSmoothnessMultiplier;
-			float _BacklightAmount;
-			float _Glossiness;
-			float _UVSrcrollAngle;
-			float _UVAnimationSpeed;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
 			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
 			float _UVAnimationSpeedWarp;
 			float _UVSrcrollAngleWarp;
 			float _UVScrollSpeedWarp;
 			float _WarpTextureScale;
-			float _UseDiffuseWarp;
-			float _StepOffset;
-			float _Cutoff;
 			float _OcclusionStrength;
 			float _OutlineTextureStrength;
 			float _Thicnkess;
@@ -816,28 +857,9 @@ Shader "Stylized Toon"
 			float _OutlineNoiseScale;
 			float _OutlineDynamicSpeed;
 			float _AdaptiveThicnkess;
-			float _WarpStrength;
-			float _OverlayRotation;
-			float _NormalMapStrength;
-			float _DiffuseWarpBrightnessOffset;
-			float _MaxScaleDependingOnCamera;
-			float _UVScrollSpeed;
-			float _OverlayUVTilling;
-			float _HalftoneSmoothness;
-			float _HalftoneEdgeOffset;
-			float _HalftoneThreshold;
-			float _ShapeSmoothness;
-			float _HalftoneToonAffect;
-			float _IndirectLightStrength;
-			float _AdditionalLightsFaloff;
 			float _AdditionalLightsAmount;
-			float _DiffusePosterizeSteps;
-			float _DiffusePosterizePower;
-			float _DiffusePosterizeOffset;
-			float _LightRampOffset;
-			float _UseShadows;
-			float _PaperTilling;
-			#ifdef TESSELLATION_ON
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -846,14 +868,15 @@ Shader "Stylized Toon"
 				float _TessMaxDisp;
 			#endif
 			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
 			sampler2D _DiffuseWarpNoise;
 			sampler2D _BumpMap;
 			sampler2D _OcclusionMap;
-			sampler2D _LightRampTexture;
 			sampler2D _MainTex;
 			sampler2D _HalftoneTexture;
-			sampler2D _SpecGlossMap;
-			sampler2D _SpecularMaskTexture;
 			sampler2D _EmissionMap;
 			sampler2D _Hatch1;
 			sampler2D _Hatch2;
@@ -1018,7 +1041,7 @@ Shader "Stylized Toon"
 					return hatching;
 			}
 			
-			
+
 			VertexOutput VertexFunction ( VertexInput v  )
 			{
 				VertexOutput o = (VertexOutput)0;
@@ -1033,7 +1056,7 @@ Shader "Stylized Toon"
 				o.ase_texcoord6.xyz = ase_worldTangent;
 				float3 ase_worldNormal = TransformObjectToWorldNormal(v.ase_normal);
 				o.ase_texcoord7.xyz = ase_worldNormal;
-				float ase_vertexTangentSign = v.ase_tangent.w * unity_WorldTransformParams.w;
+				float ase_vertexTangentSign = v.ase_tangent.w * ( unity_WorldTransformParams.w >= 0.0 ? 1.0 : -1.0 );
 				float3 ase_worldBitangent = cross( ase_worldNormal, ase_worldTangent ) * ase_vertexTangentSign;
 				o.ase_texcoord8.xyz = ase_worldBitangent;
 				OUTPUT_LIGHTMAP_UV( v.texcoord1, unity_LightmapST, o.lightmapUVOrVertexSH.xy );
@@ -1047,39 +1070,47 @@ Shader "Stylized Toon"
 				o.ase_texcoord6.w = 0;
 				o.ase_texcoord7.w = 0;
 				o.ase_texcoord8.w = 0;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = v.vertex.xyz;
 				#else
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
+
 				float3 vertexValue = defaultVertexValue;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					v.vertex.xyz = vertexValue;
 				#else
 					v.vertex.xyz += vertexValue;
 				#endif
+
 				v.ase_normal = v.ase_normal;
 
 				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
 				float4 positionCS = TransformWorldToHClip( positionWS );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				o.worldPos = positionWS;
+					o.worldPos = positionWS;
 				#endif
+
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
-				VertexPositionInputs vertexInput = (VertexPositionInputs)0;
-				vertexInput.positionWS = positionWS;
-				vertexInput.positionCS = positionCS;
-				o.shadowCoord = GetShadowCoord( vertexInput );
+					VertexPositionInputs vertexInput = (VertexPositionInputs)0;
+					vertexInput.positionWS = positionWS;
+					vertexInput.positionCS = positionCS;
+					o.shadowCoord = GetShadowCoord( vertexInput );
 				#endif
+
 				#ifdef ASE_FOG
-				o.fogFactor = ComputeFogFactor( positionCS.z );
+					o.fogFactor = ComputeFogFactor( positionCS.z );
 				#endif
+
 				o.clipPos = positionCS;
+
 				return o;
 			}
 
-			#if defined(TESSELLATION_ON)
+			#if defined(ASE_TESSELLATION)
 			struct VertexControl
 			{
 				float4 vertex : INTERNALTESSPOS;
@@ -1171,8 +1202,9 @@ Shader "Stylized Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX( IN );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 WorldPosition = IN.worldPos;
+					float3 WorldPosition = IN.worldPos;
 				#endif
+
 				float4 ShadowCoords = float4( 0, 0, 0, 0 );
 
 				#if defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
@@ -1182,6 +1214,7 @@ Shader "Stylized Toon"
 						ShadowCoords = TransformWorldToShadowCoord( WorldPosition );
 					#endif
 				#endif
+
 				float temp_output_371_0 = ( _StepOffset + 0.5 );
 				float2 temp_cast_0 = (_WarpTextureScale).xx;
 				float mulTime1523 = _TimeParameters.x * _UVScrollSpeedWarp;
@@ -1193,17 +1226,17 @@ Shader "Stylized Toon"
 				float4 ase_grabScreenPos = ASE_ComputeGrabScreenPos( screenPos );
 				float4 ase_grabScreenPosNorm = ase_grabScreenPos / ase_grabScreenPos.w;
 				float2 appendResult1847 = (float2(( _WarpTextureScale * ( _ScreenParams.x / _ScreenParams.y ) ) , _WarpTextureScale));
-				float4 unityObjectToClipPos2_g199 = TransformWorldToHClip(TransformObjectToWorld(IN.ase_texcoord5.xyz));
-				float4 computeScreenPos3_g199 = ComputeScreenPos( unityObjectToClipPos2_g199 );
-				float temp_output_29_0_g199 = ( _WarpTextureScale / 4.0 );
-				float4 unityObjectToClipPos13_g199 = TransformWorldToHClip(TransformObjectToWorld(float3(0,0,0)));
-				float4 computeScreenPos17_g199 = ComputeScreenPos( unityObjectToClipPos13_g199 );
-				float4 transform20_g199 = mul(GetObjectToWorldMatrix(),float4( 0,0,0,1 ));
-				float4 break22_g199 = ( ( ( ( computeScreenPos3_g199 / (computeScreenPos3_g199).w ) * temp_output_29_0_g199 ) - ( temp_output_29_0_g199 * ( computeScreenPos17_g199 / (computeScreenPos17_g199).w ) ) ) * distance( ( float4( _WorldSpaceCameraPos , 0.0 ) - transform20_g199 ) , float4( 0,0,0,0 ) ) );
-				float4 break26_g199 = _ScreenParams;
-				float4 appendResult24_g199 = (float4(( break22_g199.x * ( break26_g199.x / break26_g199.y ) ) , break22_g199.y , break22_g199.z , break22_g199.w));
+				float4 unityObjectToClipPos2_g211 = TransformWorldToHClip(TransformObjectToWorld(IN.ase_texcoord5.xyz));
+				float4 computeScreenPos3_g211 = ComputeScreenPos( unityObjectToClipPos2_g211 );
+				float temp_output_29_0_g211 = ( _WarpTextureScale / 4.0 );
+				float4 unityObjectToClipPos13_g211 = TransformWorldToHClip(TransformObjectToWorld(float3(0,0,0)));
+				float4 computeScreenPos17_g211 = ComputeScreenPos( unityObjectToClipPos13_g211 );
+				float4 transform20_g211 = mul(GetObjectToWorldMatrix(),float4( 0,0,0,1 ));
+				float4 break22_g211 = ( ( ( ( computeScreenPos3_g211 / (computeScreenPos3_g211).w ) * temp_output_29_0_g211 ) - ( temp_output_29_0_g211 * ( computeScreenPos17_g211 / (computeScreenPos17_g211).w ) ) ) * distance( ( float4( _WorldSpaceCameraPos , 0.0 ) - transform20_g211 ) , float4( 0,0,0,0 ) ) );
+				float4 break26_g211 = _ScreenParams;
+				float4 appendResult24_g211 = (float4(( break22_g211.x * ( break26_g211.x / break26_g211.y ) ) , break22_g211.y , break22_g211.z , break22_g211.w));
 				#ifdef _USEADAPTIVESCREENUVSWARP_ON
-				float4 staticSwitch1664 = appendResult24_g199;
+				float4 staticSwitch1664 = appendResult24_g211;
 				#else
 				float4 staticSwitch1664 = ( ase_grabScreenPosNorm * float4( appendResult1847, 0.0 , 0.0 ) );
 				#endif
@@ -1250,8 +1283,8 @@ Shader "Stylized Toon"
 				}
 				float3 BNAttenuationColor244 = ( _MainLightColor.rgb * DistanceAtten1412 );
 				float3 temp_output_260_0 = ( max( temp_cast_7 , float3(0,0,0) ) * BNAttenuationColor244 );
-				float3 break3_g196 = temp_output_260_0;
-				float temp_output_1188_0 = max( max( break3_g196.x , break3_g196.y ) , break3_g196.z );
+				float3 break3_g205 = temp_output_260_0;
+				float temp_output_1188_0 = max( max( break3_g205.x , break3_g205.y ) , break3_g205.z );
 				float smoothstepResult444 = smoothstep( ( temp_output_371_0 - 0.009 ) , temp_output_371_0 , temp_output_1188_0);
 				float4 lerpResult1619 = lerp( _ShadowColor , _MainLightColor , saturate( smoothstepResult444 ));
 				float4 temp_cast_8 = (ShadowAtten1412).xxxx;
@@ -1324,7 +1357,7 @@ Shader "Stylized Toon"
 				float4 lerpResult1462 = lerp( _MainLightColor , BNDiffuseNoAdditionalLights1554 , _HalftoneToonAffect);
 				float4 temp_output_1225_0 = ( ( lerpResult1462 + float4( AdditionalLightsDiffuse1144 , 0.0 ) ) * MainTexture364 );
 				float4 lerpResult1784 = lerp( temp_output_1225_0 , _HalftoneColor , _HalftoneColor.a);
-				float3 break3_g198 = AdditionalLightsDiffuse1144;
+				float3 break3_g210 = AdditionalLightsDiffuse1144;
 				float3 temp_cast_20 = (BNNDotL233).xxx;
 				float3 temp_cast_23 = (( BNLightWarpVector250 + ( ( 1.0 - BNLightWarpVector250 ) * BNNDotL233 ) )).xxx;
 				#ifdef _DIFFUSEWARPAFFECTHALFTONE_ON
@@ -1332,9 +1365,9 @@ Shader "Stylized Toon"
 				#else
 				float4 staticSwitch1498 = ( float4( max( temp_cast_20 , float3(0,0,0) ) , 0.0 ) * float4( BNAttenuationColor244 , 0.0 ) * ShadowAtten1415 );
 				#endif
-				float4 CompleteDiffuseLight965 = ( max( max( break3_g198.x , break3_g198.y ) , break3_g198.z ) + staticSwitch1498 );
-				float3 break3_g200 = CompleteDiffuseLight965.xyz;
-				float smoothstepResult525 = smoothstep( _HalftoneEdgeOffset , ( _HalftoneEdgeOffset + _HalftoneSmoothness ) , max( max( break3_g200.x , break3_g200.y ) , break3_g200.z ));
+				float4 CompleteDiffuseLight965 = ( max( max( break3_g210.x , break3_g210.y ) , break3_g210.z ) + staticSwitch1498 );
+				float3 break3_g209 = CompleteDiffuseLight965.xyz;
+				float smoothstepResult525 = smoothstep( _HalftoneEdgeOffset , ( _HalftoneEdgeOffset + _HalftoneSmoothness ) , max( max( break3_g209.x , break3_g209.y ) , break3_g209.z ));
 				float2 temp_cast_26 = (_OverlayUVTilling).xx;
 				float mulTime1287 = _TimeParameters.x * _UVScrollSpeed;
 				float temp_output_1293_0 = radians( _UVSrcrollAngle );
@@ -1342,17 +1375,17 @@ Shader "Stylized Toon"
 				float2 temp_output_1288_0 = ( mulTime1287 * appendResult1294 );
 				float2 texCoord478 = IN.ase_texcoord3.xy * temp_cast_26 + temp_output_1288_0;
 				float2 appendResult1849 = (float2(( _OverlayUVTilling * ( _ScreenParams.x / _ScreenParams.y ) ) , _OverlayUVTilling));
-				float4 unityObjectToClipPos2_g201 = TransformWorldToHClip(TransformObjectToWorld(IN.ase_texcoord5.xyz));
-				float4 computeScreenPos3_g201 = ComputeScreenPos( unityObjectToClipPos2_g201 );
-				float temp_output_29_0_g201 = ( _OverlayUVTilling / 4.0 );
-				float4 unityObjectToClipPos13_g201 = TransformWorldToHClip(TransformObjectToWorld(float3(0,0,0)));
-				float4 computeScreenPos17_g201 = ComputeScreenPos( unityObjectToClipPos13_g201 );
-				float4 transform20_g201 = mul(GetObjectToWorldMatrix(),float4( 0,0,0,1 ));
-				float4 break22_g201 = ( ( ( ( computeScreenPos3_g201 / (computeScreenPos3_g201).w ) * temp_output_29_0_g201 ) - ( temp_output_29_0_g201 * ( computeScreenPos17_g201 / (computeScreenPos17_g201).w ) ) ) * distance( ( float4( _WorldSpaceCameraPos , 0.0 ) - transform20_g201 ) , float4( 0,0,0,0 ) ) );
-				float4 break26_g201 = _ScreenParams;
-				float4 appendResult24_g201 = (float4(( break22_g201.x * ( break26_g201.x / break26_g201.y ) ) , break22_g201.y , break22_g201.z , break22_g201.w));
+				float4 unityObjectToClipPos2_g203 = TransformWorldToHClip(TransformObjectToWorld(IN.ase_texcoord5.xyz));
+				float4 computeScreenPos3_g203 = ComputeScreenPos( unityObjectToClipPos2_g203 );
+				float temp_output_29_0_g203 = ( _OverlayUVTilling / 4.0 );
+				float4 unityObjectToClipPos13_g203 = TransformWorldToHClip(TransformObjectToWorld(float3(0,0,0)));
+				float4 computeScreenPos17_g203 = ComputeScreenPos( unityObjectToClipPos13_g203 );
+				float4 transform20_g203 = mul(GetObjectToWorldMatrix(),float4( 0,0,0,1 ));
+				float4 break22_g203 = ( ( ( ( computeScreenPos3_g203 / (computeScreenPos3_g203).w ) * temp_output_29_0_g203 ) - ( temp_output_29_0_g203 * ( computeScreenPos17_g203 / (computeScreenPos17_g203).w ) ) ) * distance( ( float4( _WorldSpaceCameraPos , 0.0 ) - transform20_g203 ) , float4( 0,0,0,0 ) ) );
+				float4 break26_g203 = _ScreenParams;
+				float4 appendResult24_g203 = (float4(( break22_g203.x * ( break26_g203.x / break26_g203.y ) ) , break22_g203.y , break22_g203.z , break22_g203.w));
 				#ifdef _USEADAPTIVESCREENUVS_ON
-				float4 staticSwitch1661 = appendResult24_g201;
+				float4 staticSwitch1661 = appendResult24_g203;
 				#else
 				float4 staticSwitch1661 = ( float4( appendResult1849, 0.0 , 0.0 ) * ase_grabScreenPosNorm );
 				#endif
@@ -1531,8 +1564,8 @@ Shader "Stylized Toon"
 				float4 temp_output_1270_0 = ( _HatchingColor + float4( lerpResult1468 , 0.0 ) );
 				float4 lerpResult1264 = lerp( BNBlinnPhongLightning274 , temp_output_1270_0 , _HatchingColor.a);
 				float2 _uv476 = OverlayUVs1051;
-				float3 break3_g197 = ( RimLight460 + BNDiffuse391 + Emission680 + BNspecularFinalColor243 ).rgb;
-				float temp_output_1064_0 = (( _Darken * -2.0 ) + (max( max( break3_g197.x , break3_g197.y ) , break3_g197.z ) - 0.0) * (( ( _Lighten * 2.0 ) + 1.0 ) - ( _Darken * -2.0 )) / (1.0 - 0.0));
+				float3 break3_g204 = ( RimLight460 + BNDiffuse391 + Emission680 + BNspecularFinalColor243 ).rgb;
+				float temp_output_1064_0 = (( _Darken * -2.0 ) + (max( max( break3_g204.x , break3_g204.y ) , break3_g204.z ) - 0.0) * (( ( _Lighten * 2.0 ) + 1.0 ) - ( _Darken * -2.0 )) / (1.0 - 0.0));
 				float color476 = temp_output_1064_0;
 				sampler2D _Hatch0476 = _Hatch1;
 				sampler2D _Hatch1476 = _Hatch2;
@@ -1584,6 +1617,14 @@ Shader "Stylized Toon"
 					clip( Alpha - AlphaClipThreshold );
 				#endif
 
+				#if defined(_DBUFFER)
+					ApplyDecalToBaseColor(IN.clipPos, Color);
+				#endif
+
+				#if defined(_ALPHAPREMULTIPLY_ON)
+				Color *= Alpha;
+				#endif
+
 				#ifdef LOD_FADE_CROSSFADE
 					LODDitheringTransition( IN.clipPos.xyz, unity_LODFade.x );
 				#endif
@@ -1594,7 +1635,6 @@ Shader "Stylized Toon"
 
 				return half4( Color, Alpha );
 			}
-
 			ENDHLSL
 		}
 
@@ -1611,21 +1651,17 @@ Shader "Stylized Toon"
 			ColorMask 0
 
 			HLSLPROGRAM
-			
-			#pragma multi_compile _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_instancing
-			#pragma multi_compile _ DOTS_INSTANCING_ON
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _ALPHATEST_ON 1
-			#define ASE_SRP_VERSION 100501
 
-			
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
 			#pragma vertex vert
 			#pragma fragment frag
-#if ASE_SRP_VERSION >= 110000
+
 			#pragma multi_compile _ _CASTING_PUNCTUAL_LIGHT_SHADOW
-#endif
+
 			#define SHADERPASS SHADERPASS_SHADOWCASTER
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -1633,10 +1669,9 @@ Shader "Stylized Toon"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-			#define SHADOWS_SHADOWMASK 
-			#define LIGHTMAP_SHADOW_MIXING
-			#pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-			#pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
 
 
 			struct VertexInput
@@ -1651,10 +1686,10 @@ Shader "Stylized Toon"
 			{
 				float4 clipPos : SV_POSITION;
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 worldPos : TEXCOORD0;
+					float3 worldPos : TEXCOORD0;
 				#endif
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
-				float4 shadowCoord : TEXCOORD1;
+					float4 shadowCoord : TEXCOORD1;
 				#endif
 				float4 ase_texcoord2 : TEXCOORD2;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -1662,58 +1697,77 @@ Shader "Stylized Toon"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _RimShadowColor;
 			float4 _RimColor;
-			float4 _HalftoneColor;
 			float4 _ShadowColor;
 			float4 _Color;
 			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
 			float4 _SpecColor;
 			float4 _EmissionColor;
+			float4 _HalftoneColor;
 			float4 _HatchingColor;
 			float4 _OutlineColor;
-			float _SpecularPosterizeSteps;
-			float _HaltonePatternSize;
-			float _SpecularMaskRotation;
-			float _UVSrcrollAngleSpec;
-			float _UVScrollSpeedSpec;
-			float _UVAnimationSpeedSpec;
-			float _SpecularMaskScale;
+			float _Darken;
 			float _StepHalftoneTexture;
-			float _AdditionalLightsIntesity;
-			float _SpecularMaskStrength;
-			float _SmoothnessMultiplier;
+			float _Lighten;
 			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
 			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
 			float _UseSpecularMask;
 			float _RampDiffuseTextureLoaded;
-			float _Strength;
-			float _Lighten;
-			float _Darken;
-			float _IndirectLightAffectOnHatch;
-			float _UseEmission;
-			float _SideShineAmount;
-			float _SideShineHardness;
-			float _SpecularShadowMask;
-			float _SideShineIntensity;
-			float _BacklightHardness;
-			float _BacklightIntensity;
-			float _RimPower;
-			float _RimThickness;
-			float _RimSmoothness;
-			float _AdditionalLightsSmoothnessMultiplier;
-			float _BacklightAmount;
-			float _Glossiness;
-			float _UVSrcrollAngle;
-			float _UVAnimationSpeed;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
 			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
 			float _UVAnimationSpeedWarp;
 			float _UVSrcrollAngleWarp;
 			float _UVScrollSpeedWarp;
 			float _WarpTextureScale;
-			float _UseDiffuseWarp;
-			float _StepOffset;
-			float _Cutoff;
 			float _OcclusionStrength;
 			float _OutlineTextureStrength;
 			float _Thicnkess;
@@ -1721,28 +1775,9 @@ Shader "Stylized Toon"
 			float _OutlineNoiseScale;
 			float _OutlineDynamicSpeed;
 			float _AdaptiveThicnkess;
-			float _WarpStrength;
-			float _OverlayRotation;
-			float _NormalMapStrength;
-			float _DiffuseWarpBrightnessOffset;
-			float _MaxScaleDependingOnCamera;
-			float _UVScrollSpeed;
-			float _OverlayUVTilling;
-			float _HalftoneSmoothness;
-			float _HalftoneEdgeOffset;
-			float _HalftoneThreshold;
-			float _ShapeSmoothness;
-			float _HalftoneToonAffect;
-			float _IndirectLightStrength;
-			float _AdditionalLightsFaloff;
 			float _AdditionalLightsAmount;
-			float _DiffusePosterizeSteps;
-			float _DiffusePosterizePower;
-			float _DiffusePosterizeOffset;
-			float _LightRampOffset;
-			float _UseShadows;
-			float _PaperTilling;
-			#ifdef TESSELLATION_ON
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -1751,15 +1786,18 @@ Shader "Stylized Toon"
 				float _TessMaxDisp;
 			#endif
 			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
 			sampler2D _MainTex;
 			sampler2D _OcclusionMap;
 
 
 			
 			float3 _LightDirection;
-#if ASE_SRP_VERSION >= 110000 
 			float3 _LightPosition;
-#endif
+
 			VertexOutput VertexFunction( VertexInput v )
 			{
 				VertexOutput o;
@@ -1771,12 +1809,15 @@ Shader "Stylized Toon"
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
 				o.ase_texcoord2.zw = 0;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = v.vertex.xyz;
 				#else
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
+
 				float3 vertexValue = defaultVertexValue;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					v.vertex.xyz = vertexValue;
 				#else
@@ -1788,42 +1829,38 @@ Shader "Stylized Toon"
 				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				o.worldPos = positionWS;
+					o.worldPos = positionWS;
 				#endif
 
 				float3 normalWS = TransformObjectToWorldDir( v.ase_normal );
-#if ASE_SRP_VERSION >= 110000 
-			#if _CASTING_PUNCTUAL_LIGHT_SHADOW
-				float3 lightDirectionWS = normalize(_LightPosition - positionWS);
-			#else
-				float3 lightDirectionWS = _LightDirection;
-			#endif
-				float4 clipPos = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
-			#if UNITY_REVERSED_Z
-				clipPos.z = min(clipPos.z, UNITY_NEAR_CLIP_VALUE);
-			#else
-				clipPos.z = max(clipPos.z, UNITY_NEAR_CLIP_VALUE);
-			#endif
-#else
-				float4 clipPos = TransformWorldToHClip( ApplyShadowBias( positionWS, normalWS, _LightDirection ) );
-				#if UNITY_REVERSED_Z
-					clipPos.z = min(clipPos.z, clipPos.w * UNITY_NEAR_CLIP_VALUE);
+
+				#if _CASTING_PUNCTUAL_LIGHT_SHADOW
+					float3 lightDirectionWS = normalize(_LightPosition - positionWS);
 				#else
-					clipPos.z = max(clipPos.z, clipPos.w * UNITY_NEAR_CLIP_VALUE);
+					float3 lightDirectionWS = _LightDirection;
 				#endif
-#endif
+
+				float4 clipPos = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+
+				#if UNITY_REVERSED_Z
+					clipPos.z = min(clipPos.z, UNITY_NEAR_CLIP_VALUE);
+				#else
+					clipPos.z = max(clipPos.z, UNITY_NEAR_CLIP_VALUE);
+				#endif
+
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
 					VertexPositionInputs vertexInput = (VertexPositionInputs)0;
 					vertexInput.positionWS = positionWS;
 					vertexInput.positionCS = clipPos;
 					o.shadowCoord = GetShadowCoord( vertexInput );
 				#endif
+
 				o.clipPos = clipPos;
 
 				return o;
 			}
-			
-			#if defined(TESSELLATION_ON)
+
+			#if defined(ASE_TESSELLATION)
 			struct VertexControl
 			{
 				float4 vertex : INTERNALTESSPOS;
@@ -1909,8 +1946,9 @@ Shader "Stylized Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX( IN );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 WorldPosition = IN.worldPos;
+					float3 WorldPosition = IN.worldPos;
 				#endif
+
 				float4 ShadowCoords = float4( 0, 0, 0, 0 );
 
 				#if defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
@@ -1928,6 +1966,7 @@ Shader "Stylized Toon"
 				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
 				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
 				
+
 				float Alpha = temp_output_673_0;
 				float AlphaClipThreshold = _Cutoff;
 				float AlphaClipThresholdShadow = 0.5;
@@ -1945,7 +1984,6 @@ Shader "Stylized Toon"
 				#endif
 				return 0;
 			}
-
 			ENDHLSL
 		}
 
@@ -1961,16 +1999,12 @@ Shader "Stylized Toon"
 			AlphaToMask Off
 
 			HLSLPROGRAM
-			
-			#pragma multi_compile _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_instancing
-			#pragma multi_compile _ DOTS_INSTANCING_ON
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _ALPHATEST_ON 1
-			#define ASE_SRP_VERSION 100501
 
-			
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
 			#pragma vertex vert
 			#pragma fragment frag
 
@@ -1979,10 +2013,9 @@ Shader "Stylized Toon"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-			#define SHADOWS_SHADOWMASK 
-			#define LIGHTMAP_SHADOW_MIXING
-			#pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
-			#pragma multi_compile _ _ADDITIONAL_LIGHT_SHADOWS
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
 
 
 			struct VertexInput
@@ -2008,58 +2041,77 @@ Shader "Stylized Toon"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _RimShadowColor;
 			float4 _RimColor;
-			float4 _HalftoneColor;
 			float4 _ShadowColor;
 			float4 _Color;
 			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
 			float4 _SpecColor;
 			float4 _EmissionColor;
+			float4 _HalftoneColor;
 			float4 _HatchingColor;
 			float4 _OutlineColor;
-			float _SpecularPosterizeSteps;
-			float _HaltonePatternSize;
-			float _SpecularMaskRotation;
-			float _UVSrcrollAngleSpec;
-			float _UVScrollSpeedSpec;
-			float _UVAnimationSpeedSpec;
-			float _SpecularMaskScale;
+			float _Darken;
 			float _StepHalftoneTexture;
-			float _AdditionalLightsIntesity;
-			float _SpecularMaskStrength;
-			float _SmoothnessMultiplier;
+			float _Lighten;
 			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
 			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
 			float _UseSpecularMask;
 			float _RampDiffuseTextureLoaded;
-			float _Strength;
-			float _Lighten;
-			float _Darken;
-			float _IndirectLightAffectOnHatch;
-			float _UseEmission;
-			float _SideShineAmount;
-			float _SideShineHardness;
-			float _SpecularShadowMask;
-			float _SideShineIntensity;
-			float _BacklightHardness;
-			float _BacklightIntensity;
-			float _RimPower;
-			float _RimThickness;
-			float _RimSmoothness;
-			float _AdditionalLightsSmoothnessMultiplier;
-			float _BacklightAmount;
-			float _Glossiness;
-			float _UVSrcrollAngle;
-			float _UVAnimationSpeed;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
 			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
 			float _UVAnimationSpeedWarp;
 			float _UVSrcrollAngleWarp;
 			float _UVScrollSpeedWarp;
 			float _WarpTextureScale;
-			float _UseDiffuseWarp;
-			float _StepOffset;
-			float _Cutoff;
 			float _OcclusionStrength;
 			float _OutlineTextureStrength;
 			float _Thicnkess;
@@ -2067,28 +2119,9 @@ Shader "Stylized Toon"
 			float _OutlineNoiseScale;
 			float _OutlineDynamicSpeed;
 			float _AdaptiveThicnkess;
-			float _WarpStrength;
-			float _OverlayRotation;
-			float _NormalMapStrength;
-			float _DiffuseWarpBrightnessOffset;
-			float _MaxScaleDependingOnCamera;
-			float _UVScrollSpeed;
-			float _OverlayUVTilling;
-			float _HalftoneSmoothness;
-			float _HalftoneEdgeOffset;
-			float _HalftoneThreshold;
-			float _ShapeSmoothness;
-			float _HalftoneToonAffect;
-			float _IndirectLightStrength;
-			float _AdditionalLightsFaloff;
 			float _AdditionalLightsAmount;
-			float _DiffusePosterizeSteps;
-			float _DiffusePosterizePower;
-			float _DiffusePosterizeOffset;
-			float _LightRampOffset;
-			float _UseShadows;
-			float _PaperTilling;
-			#ifdef TESSELLATION_ON
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -2097,6 +2130,10 @@ Shader "Stylized Toon"
 				float _TessMaxDisp;
 			#endif
 			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
 			sampler2D _MainTex;
 			sampler2D _OcclusionMap;
 
@@ -2113,12 +2150,15 @@ Shader "Stylized Toon"
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
 				o.ase_texcoord2.zw = 0;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = v.vertex.xyz;
 				#else
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
+
 				float3 vertexValue = defaultVertexValue;
+
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					v.vertex.xyz = vertexValue;
 				#else
@@ -2130,7 +2170,7 @@ Shader "Stylized Toon"
 				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				o.worldPos = positionWS;
+					o.worldPos = positionWS;
 				#endif
 
 				o.clipPos = TransformWorldToHClip( positionWS );
@@ -2140,10 +2180,11 @@ Shader "Stylized Toon"
 					vertexInput.positionCS = o.clipPos;
 					o.shadowCoord = GetShadowCoord( vertexInput );
 				#endif
+
 				return o;
 			}
 
-			#if defined(TESSELLATION_ON)
+			#if defined(ASE_TESSELLATION)
 			struct VertexControl
 			{
 				float4 vertex : INTERNALTESSPOS;
@@ -2229,8 +2270,9 @@ Shader "Stylized Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX( IN );
 
 				#if defined(ASE_NEEDS_FRAG_WORLD_POSITION)
-				float3 WorldPosition = IN.worldPos;
+					float3 WorldPosition = IN.worldPos;
 				#endif
+
 				float4 ShadowCoords = float4( 0, 0, 0, 0 );
 
 				#if defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
@@ -2248,6 +2290,7 @@ Shader "Stylized Toon"
 				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
 				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
 				
+
 				float Alpha = temp_output_673_0;
 				float AlphaClipThreshold = _Cutoff;
 
@@ -2263,16 +2306,1244 @@ Shader "Stylized Toon"
 			ENDHLSL
 		}
 
-	
+		
+		Pass
+		{
+			
+            Name "SceneSelectionPass"
+            Tags { "LightMode"="SceneSelectionPass" }
+
+			Cull Off
+
+			HLSLPROGRAM
+
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#define ATTRIBUTES_NEED_NORMAL
+			#define ATTRIBUTES_NEED_TANGENT
+			#define SHADERPASS SHADERPASS_DEPTHONLY
+
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
+
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
+
+
+			struct VertexInput
+			{
+				float4 vertex : POSITION;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct VertexOutput
+			{
+				float4 clipPos : SV_POSITION;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+				UNITY_VERTEX_OUTPUT_STEREO
+			};
+
+			CBUFFER_START(UnityPerMaterial)
+			float4 _RimColor;
+			float4 _ShadowColor;
+			float4 _Color;
+			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
+			float4 _SpecColor;
+			float4 _EmissionColor;
+			float4 _HalftoneColor;
+			float4 _HatchingColor;
+			float4 _OutlineColor;
+			float _Darken;
+			float _StepHalftoneTexture;
+			float _Lighten;
+			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
+			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
+			float _UseSpecularMask;
+			float _RampDiffuseTextureLoaded;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
+			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
+			float _UVAnimationSpeedWarp;
+			float _UVSrcrollAngleWarp;
+			float _UVScrollSpeedWarp;
+			float _WarpTextureScale;
+			float _OcclusionStrength;
+			float _OutlineTextureStrength;
+			float _Thicnkess;
+			float _OutlineNoiseIntesity;
+			float _OutlineNoiseScale;
+			float _OutlineDynamicSpeed;
+			float _AdaptiveThicnkess;
+			float _AdditionalLightsAmount;
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
+				float _TessPhongStrength;
+				float _TessValue;
+				float _TessMin;
+				float _TessMax;
+				float _TessEdgeLength;
+				float _TessMaxDisp;
+			#endif
+			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
+			sampler2D _MainTex;
+			sampler2D _OcclusionMap;
+
+
+			
+			int _ObjectId;
+			int _PassValue;
+
+			struct SurfaceDescription
+			{
+				float Alpha;
+				float AlphaClipThreshold;
+			};
+
+			VertexOutput VertexFunction(VertexInput v  )
+			{
+				VertexOutput o;
+				ZERO_INITIALIZE(VertexOutput, o);
+
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+				o.ase_texcoord.xy = v.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				o.ase_texcoord.zw = 0;
+
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					float3 defaultVertexValue = v.vertex.xyz;
+				#else
+					float3 defaultVertexValue = float3(0, 0, 0);
+				#endif
+
+				float3 vertexValue = defaultVertexValue;
+
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					v.vertex.xyz = vertexValue;
+				#else
+					v.vertex.xyz += vertexValue;
+				#endif
+
+				v.ase_normal = v.ase_normal;
+
+				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
+				o.clipPos = TransformWorldToHClip(positionWS);
+
+				return o;
+			}
+
+			#if defined(ASE_TESSELLATION)
+			struct VertexControl
+			{
+				float4 vertex : INTERNALTESSPOS;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl vert ( VertexInput v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.vertex = v.vertex;
+				o.ase_normal = v.ase_normal;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), _WorldSpaceCameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams, unity_CameraWorldClipPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+				return patch[id];
+			}
+
+			[domain("tri")]
+			VertexOutput DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				VertexInput o = (VertexInput) 0;
+				o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
+				o.ase_normal = patch[0].ase_normal * bary.x + patch[1].ase_normal * bary.y + patch[2].ase_normal * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.vertex.xyz - patch[i].ase_normal * (dot(o.vertex.xyz, patch[i].ase_normal) - dot(patch[i].vertex.xyz, patch[i].ase_normal));
+				float phongStrength = _TessPhongStrength;
+				o.vertex.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.vertex.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			VertexOutput vert ( VertexInput v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+
+			half4 frag(VertexOutput IN ) : SV_TARGET
+			{
+				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
+
+				float2 uv_OcclusionMap = IN.ase_texcoord.xy * _OcclusionMap_ST.xy + _OcclusionMap_ST.zw;
+				float4 tex2DNode362 = tex2D( _MainTex, uv_OcclusionMap );
+				float lerpResult1655 = lerp( 1.0 , tex2D( _OcclusionMap, uv_OcclusionMap ).r , _OcclusionStrength);
+				float4 appendResult1656 = (float4(lerpResult1655 , lerpResult1655 , lerpResult1655 , 1.0));
+				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
+				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
+				
+
+				surfaceDescription.Alpha = temp_output_673_0;
+				surfaceDescription.AlphaClipThreshold = _Cutoff;
+
+				#if _ALPHATEST_ON
+					float alphaClipThreshold = 0.01f;
+					#if ALPHA_CLIP_THRESHOLD
+						alphaClipThreshold = surfaceDescription.AlphaClipThreshold;
+					#endif
+					clip(surfaceDescription.Alpha - alphaClipThreshold);
+				#endif
+
+				half4 outColor = half4(_ObjectId, _PassValue, 1.0, 1.0);
+				return outColor;
+			}
+			ENDHLSL
+		}
+
+		
+		Pass
+		{
+			
+            Name "ScenePickingPass"
+            Tags { "LightMode"="Picking" }
+
+			HLSLPROGRAM
+
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#define ATTRIBUTES_NEED_NORMAL
+			#define ATTRIBUTES_NEED_TANGENT
+			#define SHADERPASS SHADERPASS_DEPTHONLY
+
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
+
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
+
+
+			struct VertexInput
+			{
+				float4 vertex : POSITION;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct VertexOutput
+			{
+				float4 clipPos : SV_POSITION;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+				UNITY_VERTEX_OUTPUT_STEREO
+			};
+
+			CBUFFER_START(UnityPerMaterial)
+			float4 _RimColor;
+			float4 _ShadowColor;
+			float4 _Color;
+			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
+			float4 _SpecColor;
+			float4 _EmissionColor;
+			float4 _HalftoneColor;
+			float4 _HatchingColor;
+			float4 _OutlineColor;
+			float _Darken;
+			float _StepHalftoneTexture;
+			float _Lighten;
+			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
+			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
+			float _UseSpecularMask;
+			float _RampDiffuseTextureLoaded;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
+			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
+			float _UVAnimationSpeedWarp;
+			float _UVSrcrollAngleWarp;
+			float _UVScrollSpeedWarp;
+			float _WarpTextureScale;
+			float _OcclusionStrength;
+			float _OutlineTextureStrength;
+			float _Thicnkess;
+			float _OutlineNoiseIntesity;
+			float _OutlineNoiseScale;
+			float _OutlineDynamicSpeed;
+			float _AdaptiveThicnkess;
+			float _AdditionalLightsAmount;
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
+				float _TessPhongStrength;
+				float _TessValue;
+				float _TessMin;
+				float _TessMax;
+				float _TessEdgeLength;
+				float _TessMaxDisp;
+			#endif
+			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
+			sampler2D _MainTex;
+			sampler2D _OcclusionMap;
+
+
+			
+			float4 _SelectionID;
+
+
+			struct SurfaceDescription
+			{
+				float Alpha;
+				float AlphaClipThreshold;
+			};
+
+			VertexOutput VertexFunction(VertexInput v  )
+			{
+				VertexOutput o;
+				ZERO_INITIALIZE(VertexOutput, o);
+
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+				o.ase_texcoord.xy = v.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				o.ase_texcoord.zw = 0;
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					float3 defaultVertexValue = v.vertex.xyz;
+				#else
+					float3 defaultVertexValue = float3(0, 0, 0);
+				#endif
+				float3 vertexValue = defaultVertexValue;
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					v.vertex.xyz = vertexValue;
+				#else
+					v.vertex.xyz += vertexValue;
+				#endif
+				v.ase_normal = v.ase_normal;
+
+				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
+				o.clipPos = TransformWorldToHClip(positionWS);
+				return o;
+			}
+
+			#if defined(ASE_TESSELLATION)
+			struct VertexControl
+			{
+				float4 vertex : INTERNALTESSPOS;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl vert ( VertexInput v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.vertex = v.vertex;
+				o.ase_normal = v.ase_normal;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), _WorldSpaceCameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams, unity_CameraWorldClipPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+				return patch[id];
+			}
+
+			[domain("tri")]
+			VertexOutput DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				VertexInput o = (VertexInput) 0;
+				o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
+				o.ase_normal = patch[0].ase_normal * bary.x + patch[1].ase_normal * bary.y + patch[2].ase_normal * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.vertex.xyz - patch[i].ase_normal * (dot(o.vertex.xyz, patch[i].ase_normal) - dot(patch[i].vertex.xyz, patch[i].ase_normal));
+				float phongStrength = _TessPhongStrength;
+				o.vertex.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.vertex.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			VertexOutput vert ( VertexInput v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+
+			half4 frag(VertexOutput IN ) : SV_TARGET
+			{
+				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
+
+				float2 uv_OcclusionMap = IN.ase_texcoord.xy * _OcclusionMap_ST.xy + _OcclusionMap_ST.zw;
+				float4 tex2DNode362 = tex2D( _MainTex, uv_OcclusionMap );
+				float lerpResult1655 = lerp( 1.0 , tex2D( _OcclusionMap, uv_OcclusionMap ).r , _OcclusionStrength);
+				float4 appendResult1656 = (float4(lerpResult1655 , lerpResult1655 , lerpResult1655 , 1.0));
+				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
+				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
+				
+
+				surfaceDescription.Alpha = temp_output_673_0;
+				surfaceDescription.AlphaClipThreshold = _Cutoff;
+
+				#if _ALPHATEST_ON
+					float alphaClipThreshold = 0.01f;
+					#if ALPHA_CLIP_THRESHOLD
+						alphaClipThreshold = surfaceDescription.AlphaClipThreshold;
+					#endif
+					clip(surfaceDescription.Alpha - alphaClipThreshold);
+				#endif
+
+				half4 outColor = 0;
+				outColor = _SelectionID;
+
+				return outColor;
+			}
+
+			ENDHLSL
+		}
+
+		
+		Pass
+		{
+			
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormalsOnly" }
+
+			ZTest LEqual
+			ZWrite On
+
+
+			HLSLPROGRAM
+
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#define ATTRIBUTES_NEED_NORMAL
+			#define ATTRIBUTES_NEED_TANGENT
+			#define VARYINGS_NEED_NORMAL_WS
+
+			#define SHADERPASS SHADERPASS_DEPTHNORMALSONLY
+
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
+
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
+
+
+			struct VertexInput
+			{
+				float4 vertex : POSITION;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct VertexOutput
+			{
+				float4 clipPos : SV_POSITION;
+				float3 normalWS : TEXCOORD0;
+				float4 ase_texcoord1 : TEXCOORD1;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+				UNITY_VERTEX_OUTPUT_STEREO
+			};
+
+			CBUFFER_START(UnityPerMaterial)
+			float4 _RimColor;
+			float4 _ShadowColor;
+			float4 _Color;
+			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
+			float4 _SpecColor;
+			float4 _EmissionColor;
+			float4 _HalftoneColor;
+			float4 _HatchingColor;
+			float4 _OutlineColor;
+			float _Darken;
+			float _StepHalftoneTexture;
+			float _Lighten;
+			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
+			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
+			float _UseSpecularMask;
+			float _RampDiffuseTextureLoaded;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
+			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
+			float _UVAnimationSpeedWarp;
+			float _UVSrcrollAngleWarp;
+			float _UVScrollSpeedWarp;
+			float _WarpTextureScale;
+			float _OcclusionStrength;
+			float _OutlineTextureStrength;
+			float _Thicnkess;
+			float _OutlineNoiseIntesity;
+			float _OutlineNoiseScale;
+			float _OutlineDynamicSpeed;
+			float _AdaptiveThicnkess;
+			float _AdditionalLightsAmount;
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
+				float _TessPhongStrength;
+				float _TessValue;
+				float _TessMin;
+				float _TessMax;
+				float _TessEdgeLength;
+				float _TessMaxDisp;
+			#endif
+			CBUFFER_END
+
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
+			sampler2D _MainTex;
+			sampler2D _OcclusionMap;
+
+
+			
+			struct SurfaceDescription
+			{
+				float Alpha;
+				float AlphaClipThreshold;
+			};
+
+			VertexOutput VertexFunction(VertexInput v  )
+			{
+				VertexOutput o;
+				ZERO_INITIALIZE(VertexOutput, o);
+
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+				o.ase_texcoord1.xy = v.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				o.ase_texcoord1.zw = 0;
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					float3 defaultVertexValue = v.vertex.xyz;
+				#else
+					float3 defaultVertexValue = float3(0, 0, 0);
+				#endif
+
+				float3 vertexValue = defaultVertexValue;
+
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					v.vertex.xyz = vertexValue;
+				#else
+					v.vertex.xyz += vertexValue;
+				#endif
+
+				v.ase_normal = v.ase_normal;
+
+				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
+				float3 normalWS = TransformObjectToWorldNormal(v.ase_normal);
+
+				o.clipPos = TransformWorldToHClip(positionWS);
+				o.normalWS.xyz =  normalWS;
+
+				return o;
+			}
+
+			#if defined(ASE_TESSELLATION)
+			struct VertexControl
+			{
+				float4 vertex : INTERNALTESSPOS;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl vert ( VertexInput v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.vertex = v.vertex;
+				o.ase_normal = v.ase_normal;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), _WorldSpaceCameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams, unity_CameraWorldClipPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+				return patch[id];
+			}
+
+			[domain("tri")]
+			VertexOutput DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				VertexInput o = (VertexInput) 0;
+				o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
+				o.ase_normal = patch[0].ase_normal * bary.x + patch[1].ase_normal * bary.y + patch[2].ase_normal * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.vertex.xyz - patch[i].ase_normal * (dot(o.vertex.xyz, patch[i].ase_normal) - dot(patch[i].vertex.xyz, patch[i].ase_normal));
+				float phongStrength = _TessPhongStrength;
+				o.vertex.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.vertex.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			VertexOutput vert ( VertexInput v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+
+			half4 frag(VertexOutput IN ) : SV_TARGET
+			{
+				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
+
+				float2 uv_OcclusionMap = IN.ase_texcoord1.xy * _OcclusionMap_ST.xy + _OcclusionMap_ST.zw;
+				float4 tex2DNode362 = tex2D( _MainTex, uv_OcclusionMap );
+				float lerpResult1655 = lerp( 1.0 , tex2D( _OcclusionMap, uv_OcclusionMap ).r , _OcclusionStrength);
+				float4 appendResult1656 = (float4(lerpResult1655 , lerpResult1655 , lerpResult1655 , 1.0));
+				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
+				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
+				
+
+				surfaceDescription.Alpha = temp_output_673_0;
+				surfaceDescription.AlphaClipThreshold = _Cutoff;
+
+				#if _ALPHATEST_ON
+					clip(surfaceDescription.Alpha - surfaceDescription.AlphaClipThreshold);
+				#endif
+
+				#ifdef LOD_FADE_CROSSFADE
+					LODDitheringTransition( IN.clipPos.xyz, unity_LODFade.x );
+				#endif
+
+				float3 normalWS = IN.normalWS;
+
+				return half4(NormalizeNormalPerPixel(normalWS), 0.0);
+			}
+
+			ENDHLSL
+		}
+
+		
+		Pass
+		{
+			
+            Name "DepthNormalsOnly"
+            Tags { "LightMode"="DepthNormalsOnly" }
+
+			ZTest LEqual
+			ZWrite On
+
+			HLSLPROGRAM
+
+			#pragma multi_compile_instancing
+			#define _ALPHATEST_ON 1
+			#define ASE_SRP_VERSION 120110
+
+
+			#pragma exclude_renderers glcore gles gles3 
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#define ATTRIBUTES_NEED_NORMAL
+			#define ATTRIBUTES_NEED_TANGENT
+			#define ATTRIBUTES_NEED_TEXCOORD1
+			#define VARYINGS_NEED_NORMAL_WS
+			#define VARYINGS_NEED_TANGENT_WS
+
+			#define SHADERPASS SHADERPASS_DEPTHNORMALSONLY
+
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
+			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
+
+			#pragma shader_feature_local _USESPECULAR_ON
+			#pragma shader_feature_local _USESCREENUVSSPECULAR_ON
+			#pragma shader_feature_local _USEDIFFUSEWARPASOVERLAY_ON
+
+
+			struct VertexInput
+			{
+				float4 vertex : POSITION;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct VertexOutput
+			{
+				float4 clipPos : SV_POSITION;
+				float3 normalWS : TEXCOORD0;
+				float4 ase_texcoord1 : TEXCOORD1;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+				UNITY_VERTEX_OUTPUT_STEREO
+			};
+
+			CBUFFER_START(UnityPerMaterial)
+			float4 _RimColor;
+			float4 _ShadowColor;
+			float4 _Color;
+			float4 _OcclusionMap_ST;
+			float4 _RimShadowColor;
+			float4 _SpecColor;
+			float4 _EmissionColor;
+			float4 _HalftoneColor;
+			float4 _HatchingColor;
+			float4 _OutlineColor;
+			float _Darken;
+			float _StepHalftoneTexture;
+			float _Lighten;
+			float _MainLightIntesity;
+			float _MaxScaleDependingOnCamera;
+			float _OverlayRotation;
+			float _UVAnimationSpeed;
+			float _UVSrcrollAngle;
+			float _UVScrollSpeed;
+			float _OverlayUVTilling;
+			float _HalftoneSmoothness;
+			float _HalftoneEdgeOffset;
+			float _HalftoneThreshold;
+			float _UVAnimationSpeedSpec;
+			float _UseEmission;
+			float _UVSrcrollAngleSpec;
+			float _HaltonePatternSize;
+			float _SpecularShadowMask;
+			float _Strength;
+			float _ShapeSmoothness;
+			float _IndirectLightAffectOnHatch;
+			float _RimSmoothness;
+			float _RimThickness;
+			float _RimPower;
+			float _BacklightIntensity;
+			float _BacklightHardness;
+			float _BacklightAmount;
+			float _SideShineIntensity;
+			float _SideShineHardness;
+			float _SideShineAmount;
+			float _UVScrollSpeedSpec;
+			float _SmoothnessMultiplier;
+			float _LightRampOffset;
+			float _IndirectLightStrength;
+			float _AdditionalLightsSmoothnessMultiplier;
+			float _AdditionalLightsFaloff;
+			float _DiffusePosterizeSteps;
+			float _SpecularMaskStrength;
+			float _SpecularFaloff;
+			float _StepOffset;
+			float _SpecularMaskRotation;
+			float _UseSpecularMask;
+			float _RampDiffuseTextureLoaded;
+			float _UseDiffuseWarp;
+			float _DiffusePosterizeOffset;
+			float _WarpTextureRotation;
+			float _SpecularPosterizeSteps;
+			float _DiffusePosterizePower;
+			float _AdditionalLightsIntesity;
+			float _Glossiness;
+			float _HalftoneToonAffect;
+			float _DiffuseWarpBrightnessOffset;
+			float _SpecularMaskScale;
+			float _PaperTilling;
+			float _UseShadows;
+			float _NormalMapStrength;
+			float _WarpStrength;
+			float _UVAnimationSpeedWarp;
+			float _UVSrcrollAngleWarp;
+			float _UVScrollSpeedWarp;
+			float _WarpTextureScale;
+			float _OcclusionStrength;
+			float _OutlineTextureStrength;
+			float _Thicnkess;
+			float _OutlineNoiseIntesity;
+			float _OutlineNoiseScale;
+			float _OutlineDynamicSpeed;
+			float _AdaptiveThicnkess;
+			float _AdditionalLightsAmount;
+			float _Cutoff;
+			#ifdef ASE_TESSELLATION
+				float _TessPhongStrength;
+				float _TessValue;
+				float _TessMin;
+				float _TessMax;
+				float _TessEdgeLength;
+				float _TessMaxDisp;
+			#endif
+			CBUFFER_END
+			sampler2D _SpecularMaskTexture;
+			sampler2D _SpecGlossMap;
+			sampler2D _LightRampTexture;
+			sampler2D _MainTex;
+			sampler2D _OcclusionMap;
+
+
+			
+			struct SurfaceDescription
+			{
+				float Alpha;
+				float AlphaClipThreshold;
+			};
+
+			VertexOutput VertexFunction(VertexInput v  )
+			{
+				VertexOutput o;
+				ZERO_INITIALIZE(VertexOutput, o);
+
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+				o.ase_texcoord1.xy = v.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				o.ase_texcoord1.zw = 0;
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					float3 defaultVertexValue = v.vertex.xyz;
+				#else
+					float3 defaultVertexValue = float3(0, 0, 0);
+				#endif
+
+				float3 vertexValue = defaultVertexValue;
+
+				#ifdef ASE_ABSOLUTE_VERTEX_POS
+					v.vertex.xyz = vertexValue;
+				#else
+					v.vertex.xyz += vertexValue;
+				#endif
+
+				v.ase_normal = v.ase_normal;
+
+				float3 positionWS = TransformObjectToWorld( v.vertex.xyz );
+				float3 normalWS = TransformObjectToWorldNormal(v.ase_normal);
+
+				o.clipPos = TransformWorldToHClip(positionWS);
+				o.normalWS.xyz =  normalWS;
+
+				return o;
+			}
+
+			#if defined(ASE_TESSELLATION)
+			struct VertexControl
+			{
+				float4 vertex : INTERNALTESSPOS;
+				float3 ase_normal : NORMAL;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl vert ( VertexInput v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.vertex = v.vertex;
+				o.ase_normal = v.ase_normal;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), _WorldSpaceCameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(v[0].vertex, v[1].vertex, v[2].vertex, edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), _WorldSpaceCameraPos, _ScreenParams, unity_CameraWorldClipPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+				return patch[id];
+			}
+
+			[domain("tri")]
+			VertexOutput DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				VertexInput o = (VertexInput) 0;
+				o.vertex = patch[0].vertex * bary.x + patch[1].vertex * bary.y + patch[2].vertex * bary.z;
+				o.ase_normal = patch[0].ase_normal * bary.x + patch[1].ase_normal * bary.y + patch[2].ase_normal * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.vertex.xyz - patch[i].ase_normal * (dot(o.vertex.xyz, patch[i].ase_normal) - dot(patch[i].vertex.xyz, patch[i].ase_normal));
+				float phongStrength = _TessPhongStrength;
+				o.vertex.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.vertex.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			VertexOutput vert ( VertexInput v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+
+			half4 frag(VertexOutput IN ) : SV_TARGET
+			{
+				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
+
+				float2 uv_OcclusionMap = IN.ase_texcoord1.xy * _OcclusionMap_ST.xy + _OcclusionMap_ST.zw;
+				float4 tex2DNode362 = tex2D( _MainTex, uv_OcclusionMap );
+				float lerpResult1655 = lerp( 1.0 , tex2D( _OcclusionMap, uv_OcclusionMap ).r , _OcclusionStrength);
+				float4 appendResult1656 = (float4(lerpResult1655 , lerpResult1655 , lerpResult1655 , 1.0));
+				float4 MainTexture364 = ( _Color * tex2DNode362 * appendResult1656 );
+				float temp_output_673_0 = ( MainTexture364.a * 1.0 );
+				
+
+				surfaceDescription.Alpha = temp_output_673_0;
+				surfaceDescription.AlphaClipThreshold = _Cutoff;
+
+				#if _ALPHATEST_ON
+					clip(surfaceDescription.Alpha - surfaceDescription.AlphaClipThreshold);
+				#endif
+
+				#ifdef LOD_FADE_CROSSFADE
+					LODDitheringTransition( IN.clipPos.xyz, unity_LODFade.x );
+				#endif
+
+				float3 normalWS = IN.normalWS;
+
+				return half4(NormalizeNormalPerPixel(normalWS), 0.0);
+			}
+
+			ENDHLSL
+		}
+		
 	}
 	
 	CustomEditor "StylizedToonEditor"
-	Fallback "Hidden/InternalErrorShader"
+	FallBack "Hidden/Shader Graph/FallbackError"
 	
+	Fallback Off
 }
 /*ASEBEGIN
-Version=18935
-474;73;2313;770;9529.256;-679.7528;1;True;False
+Version=19105
 Node;AmplifyShaderEditor.CommentaryNode;678;1058.121,1503.775;Inherit;False;1482.025;1686.722;Comment;27;636;659;686;679;685;658;680;638;682;677;364;204;362;1388;1376;1536;1537;1538;1539;1540;1541;1651;1652;1653;1655;1656;1669;Inputs;1,1,1,1;0;0
 Node;AmplifyShaderEditor.TextureCoordinatesNode;1669;1124.039,1766.173;Inherit;False;0;1651;2;3;2;SAMPLER2D;;False;0;FLOAT2;1,1;False;1;FLOAT2;0,0;False;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.RangedFloatNode;1652;1503.492,2306.291;Inherit;False;Property;_OcclusionStrength;Occlusion Strength ;108;0;Create;True;0;0;0;False;0;False;1;0;0;1;0;1;FLOAT;0
@@ -2365,7 +3636,7 @@ Node;AmplifyShaderEditor.RangedFloatNode;1469;-2124.462,1991.161;Inherit;False;P
 Node;AmplifyShaderEditor.ColorNode;456;2734.758,-872.3867;Inherit;False;Property;_RimColor;Rim Color;26;1;[HDR];Create;True;0;0;0;False;0;False;1,1,1,0;1,1,1,0;True;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.RangedFloatNode;593;-1634.274,-144.02;Inherit;False;Property;_OutlineNoiseScale;Outline Noise Scale;33;0;Create;False;0;0;0;False;0;False;10;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SaturateNode;1486;-5319.875,2450.541;Inherit;False;1;0;FLOAT4;0,0,0,0;False;1;FLOAT4;0
-Node;AmplifyShaderEditor.StaticSwitch;1266;-3901.295,784.0469;Inherit;False;Property;_OverlayMode;Overlay Mode;78;0;Create;False;0;0;0;False;0;False;0;0;0;True;;KeywordEnum;3;None;Haftone;Hatching;Create;True;True;All;9;1;COLOR;0,0,0,0;False;0;COLOR;0,0,0,0;False;2;COLOR;0,0,0,0;False;3;COLOR;0,0,0,0;False;4;COLOR;0,0,0,0;False;5;COLOR;0,0,0,0;False;6;COLOR;0,0,0,0;False;7;COLOR;0,0,0,0;False;8;COLOR;0,0,0,0;False;1;COLOR;0
+Node;AmplifyShaderEditor.StaticSwitch;1266;-3901.295,784.0469;Inherit;False;Property;_OverlayMode;Overlay Mode;79;0;Create;False;0;0;0;False;0;False;0;0;0;True;;KeywordEnum;3;None;Haftone;Hatching;Create;True;True;All;9;1;COLOR;0,0,0,0;False;0;COLOR;0,0,0,0;False;2;COLOR;0,0,0,0;False;3;COLOR;0,0,0,0;False;4;COLOR;0,0,0,0;False;5;COLOR;0,0,0,0;False;6;COLOR;0,0,0,0;False;7;COLOR;0,0,0,0;False;8;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.SimpleRemainderNode;1279;-1248.82,6510.738;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;2;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;486;-908.7979,5575.512;Inherit;False;2;2;0;FLOAT2;0,0;False;1;FLOAT4;0,0,0,0;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1647;2982.141,-773.8771;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
@@ -2559,7 +3830,7 @@ Node;AmplifyShaderEditor.RangedFloatNode;1067;-1745.472,3174.743;Inherit;False;P
 Node;AmplifyShaderEditor.RegisterLocalVarNode;965;-7175.173,2060.798;Inherit;False;CompleteDiffuseLight;-1;True;1;0;FLOAT4;0,0,0,0;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;516;-1063.541,4249.853;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;389;-8423.692,1747.842;Inherit;False;250;BNLightWarpVector;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.FunctionNode;1771;-968.6199,5403.044;Inherit;False;StaticScreenSpaceUV;-1;;201;1e9a29825d5b8df43882e5bd6744aaf5;0;1;7;FLOAT;1;False;1;FLOAT4;0
+Node;AmplifyShaderEditor.FunctionNode;1771;-968.6199,5403.044;Inherit;False;StaticScreenSpaceUV;-1;;203;1e9a29825d5b8df43882e5bd6744aaf5;0;1;7;FLOAT;1;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.SaturateNode;1611;-4620.763,2489.308;Inherit;False;1;0;FLOAT4;0,0,0,0;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.SimpleAddOpNode;1249;-688.2852,1269.027;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.GetLocalVarNode;1599;-5111.077,2598.644;Inherit;False;1415;ShadowAtten;1;0;OBJECT;;False;1;FLOAT4;0
@@ -2575,7 +3846,7 @@ Node;AmplifyShaderEditor.StaticSwitch;1646;3250.362,-717.5472;Inherit;False;Prop
 Node;AmplifyShaderEditor.SimpleTimeNode;1523;-8069.095,676.4829;Inherit;False;1;0;FLOAT;1;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1362;-6558.23,2224.656;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;-1;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;748;1057.807,-244.0028;Inherit;False;1538;BNCurrentNormal;1;0;OBJECT;;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.FunctionNode;1187;-1529.354,2768.867;Inherit;False;MaxFromVector3;-1;;197;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.FunctionNode;1187;-1529.354,2768.867;Inherit;False;MaxFromVector3;-1;;204;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1281;-874.0208,6508.744;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0.5;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;699;-3293.921,3090.699;Inherit;False;Property;_SpecularMaskRotation;Specular Mask Rotation;48;0;Create;True;0;0;0;True;0;False;0;83.96;0;180;0;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;1631;-4203.31,2248.858;Inherit;False;Property;_HaltonePatternSize;Halftone Pattern Size;104;0;Create;False;0;0;0;False;0;False;0;1;0;1;0;1;FLOAT;0
@@ -2656,7 +3927,7 @@ Node;AmplifyShaderEditor.DynamicAppendNode;1520;-8031.88,723.4033;Inherit;False;
 Node;AmplifyShaderEditor.WorldSpaceLightPos;702;548.6017,-596.4689;Inherit;False;0;3;FLOAT4;0;FLOAT3;1;FLOAT;2
 Node;AmplifyShaderEditor.LerpOp;695;-3958.377,7.337563;Inherit;False;3;0;FLOAT;1;False;1;FLOAT;0;False;2;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;1403;-5952.205,5308.702;Inherit;False;1388;SpecularColor;1;0;OBJECT;;False;1;COLOR;0
-Node;AmplifyShaderEditor.FunctionNode;1188;-7375.836,1841.717;Inherit;False;MaxFromVector3;-1;;196;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.FunctionNode;1188;-7375.836,1841.717;Inherit;False;MaxFromVector3;-1;;205;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;207;-7656.765,5108.074;Inherit;False;Property;_SpecularFaloff;Specular Falloff;9;0;Create;False;0;0;0;True;0;False;0;0;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleAddOpNode;282;-438.3608,945.2823;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1418;-7513.909,1994.875;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT4;0,0,0,0;False;1;FLOAT4;0
@@ -2682,13 +3953,13 @@ Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1069;-1437.051,3185.468;Inherit;Fa
 Node;AmplifyShaderEditor.DotProductOpNode;234;-6008.713,-366.3873;Inherit;False;2;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.StaticSwitch;1354;-1429.461,4606.334;Inherit;False;Property;_Inverse;Inverse;91;0;Create;True;0;0;0;False;0;False;0;0;0;True;;Toggle;2;Key0;Key1;Create;True;True;All;9;1;FLOAT;0;False;0;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT;0;False;7;FLOAT;0;False;8;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1668;-8004.736,343.5169;Inherit;False;2;2;0;FLOAT4;0,0,0,0;False;1;FLOAT2;0,0;False;1;FLOAT4;0
-Node;AmplifyShaderEditor.FunctionNode;1828;-8505.576,2904.376;Inherit;False;SRP Additional Light;-1;;195;6c86746ad131a0a408ca599df5f40861;7,6,0,9,0,23,0,26,0,27,0,24,0,25,0;6;2;FLOAT3;0,0,0;False;11;FLOAT3;0,0,0;False;15;FLOAT3;0,0,0;False;14;FLOAT3;1,1,1;False;18;FLOAT;0.5;False;32;FLOAT4;0,0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.FunctionNode;1828;-8505.576,2904.376;Inherit;False;SRP Additional Light;-1;;206;6c86746ad131a0a408ca599df5f40861;7,6,0,9,0,23,0,27,0,25,0,24,0,26,0;6;2;FLOAT3;0,0,0;False;11;FLOAT3;0,0,0;False;15;FLOAT3;0,0,0;False;14;FLOAT3;1,1,1;False;18;FLOAT;0.5;False;32;FLOAT4;0,0,0,0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.RangedFloatNode;440;-3290.488,2295.681;Inherit;False;Property;_SpecularMaskStrength;Specular Mask Strength;20;0;Create;True;0;0;0;True;0;False;0.1856417;0;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.IndirectDiffuseLighting;276;-3764.335,1268.758;Inherit;False;World;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.SimpleDivideOpNode;517;-1231.262,4129.005;Inherit;False;2;0;FLOAT;0.1;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1522;-7825.463,655.2419;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT2;1,0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.GetLocalVarNode;1600;-4935.629,2686.68;Inherit;False;250;BNLightWarpVector;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.FunctionNode;1186;-1771.505,4300.659;Inherit;False;MaxFromVector3;-1;;200;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.FunctionNode;1186;-1771.505,4300.659;Inherit;False;MaxFromVector3;-1;;209;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;1050;105.2931,5619.522;Inherit;False;Property;_OverlayRotation;UV Rotation;66;0;Create;False;0;0;0;False;0;False;0;0;0;180;0;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;530;-1778.019,976.3893;Inherit;False;274;BNBlinnPhongLightning;1;0;OBJECT;;False;1;COLOR;0
 Node;AmplifyShaderEditor.SimpleAddOpNode;371;-7003.382,2291.36;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0.5;False;1;FLOAT;0
@@ -2750,13 +4021,13 @@ Node;AmplifyShaderEditor.RangedFloatNode;659;1476.81,1783.215;Inherit;False;Prop
 Node;AmplifyShaderEditor.RangedFloatNode;1509;-6016.182,2617.044;Inherit;False;Property;_DiffuseWarpBrightnessOffset;Brightness Offset;101;0;Create;False;0;0;0;True;0;False;1.12;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;681;-773.323,1053.889;Inherit;False;680;Emission;1;0;OBJECT;;False;1;COLOR;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1856;-1534.746,2176.987;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.TemplateMultiPassSwitchNode;42;122.0946,834.946;Inherit;False;0;0;5;5;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;2;COLOR;0,0,0,0;False;3;COLOR;0,0,0,0;False;4;COLOR;0,0,0,0;False;1;COLOR;0
+Node;AmplifyShaderEditor.TemplateMultiPassSwitchNode;42;122.0946,834.946;Inherit;False;0;0;10;10;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;2;COLOR;0,0,0,0;False;3;COLOR;0,0,0,0;False;4;COLOR;0,0,0,0;False;5;COLOR;0,0,0,0;False;6;COLOR;0,0,0,0;False;7;COLOR;0,0,0,0;False;8;COLOR;0,0,0,0;False;9;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;1415;-7721.192,-234.9471;Inherit;False;ShadowAtten;-1;True;1;0;FLOAT4;0,0,0,0;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.PowerNode;401;-7587.071,5545.759;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1421;-45.53701,757.0069;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.WorldPosInputsNode;1577;-8039.773,4297.185;Inherit;False;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
 Node;AmplifyShaderEditor.SamplerNode;682;1351.523,2385.05;Inherit;True;Property;_EmissionMap;Emission Map;43;3;[HDR];[NoScaleOffset];[SingleLineTexture];Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.FunctionNode;1684;-7515.681,2175.847;Inherit;False;MaxFromVector3;-1;;198;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.FunctionNode;1684;-7515.681,2175.847;Inherit;False;MaxFromVector3;-1;;210;92f2539b674dd3042b132cfbdf18809e;0;1;1;FLOAT3;0,0,0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.WireNode;1783;1170.956,4503.854;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleSubtractOpNode;767;1429.617,-17.20018;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;-0.3;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;1508;-7986.188,2534.964;Inherit;False;1415;ShadowAtten;1;0;OBJECT;;False;1;FLOAT4;0
@@ -2787,7 +4058,7 @@ Node;AmplifyShaderEditor.DynamicAppendNode;1842;-4019.146,2951.305;Inherit;False
 Node;AmplifyShaderEditor.RangedFloatNode;439;-4276.767,2774.767;Inherit;False;Property;_SpecularMaskScale;Specular Mask Tiling;22;0;Create;False;0;0;0;True;0;False;1;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;381;-8645.469,209.3164;Inherit;False;Property;_WarpTextureScale;UV Tiling;23;0;Create;False;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.CustomExpressionNode;1181;-7859.631,3216.085;Inherit;False;float3 Color = 0@$$int numLights = GetAdditionalLightsCount()@$for(int i = 0@ i<numLights@i++)${$	$			#if VERSION_GREATER_EQUAL(10, 1)$			Light light = GetAdditionalLight(i, WorldPosition, shadowmask)@$			// see AdditionalLights_float for explanation of this$		#else$			Light light = GetAdditionalLight(i, WorldPosition)@$		#endif$$	$	float3 DotVector = dot(light.direction,WorldNormal)@$	$$	half3 AttLightColor = (light.shadowAttenuation * light.distanceAttenuation)@$	 float3 colout = max(float3(0.f,0.f,0.f),LightWrapVector + (1-LightWrapVector) * DotVector )*AttLightColor*light.color@ $	float maxColor = max(colout.r,max(colout.g,colout.b))@$	float3 outColor = smoothstep(SMin,SMax,maxColor)*light.color@$	 Color += outColor@$	//Color += smoothstep(float3(Faloff,Faloff,Faloff),float3(0.5f,0.5f,0.5f),colout)@$}$$return Color@;3;Create;7;True;WorldPosition;FLOAT3;0,0,0;In;;Float;False;True;WorldNormal;FLOAT3;0,0,0;In;;Float;False;True;LightWrapVector;FLOAT3;0,0,0;In;;Inherit;False;True;SMin;FLOAT;0;In;;Inherit;False;True;SMax;FLOAT;0;In;;Inherit;False;True;Faloff;FLOAT;0;In;;Inherit;False;True;shadowmask;FLOAT4;1,1,1,1;In;;Inherit;False;AdditionalLight;False;False;0;;False;7;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT4;1,1,1,1;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.FunctionNode;1770;-8123.687,494.8918;Inherit;False;StaticScreenSpaceUV;-1;;199;1e9a29825d5b8df43882e5bd6744aaf5;0;1;7;FLOAT;1;False;1;FLOAT4;0
+Node;AmplifyShaderEditor.FunctionNode;1770;-8123.687,494.8918;Inherit;False;StaticScreenSpaceUV;-1;;211;1e9a29825d5b8df43882e5bd6744aaf5;0;1;7;FLOAT;1;False;1;FLOAT4;0
 Node;AmplifyShaderEditor.ScreenParams;1848;-1863.346,6005.213;Inherit;False;0;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.SimpleDivideOpNode;1858;-1669.666,2175.111;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.OneMinusNode;1256;-1518.766,1779.329;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
@@ -2813,11 +4084,16 @@ Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1789;-1220.61,2037.258;Inherit;Fal
 Node;AmplifyShaderEditor.GrabScreenPosition;1791;-1492.132,1926.313;Inherit;False;0;0;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;1846;-8471.604,364.1472;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.DynamicAppendNode;1857;-1387.452,2162.439;Inherit;False;FLOAT2;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT2;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;38;810.7261,969.3201;Float;False;True;-1;2;StylizedToonEditor;0;3;Stylized Toon;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;8;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;True;0;False;609;False;False;False;False;False;False;False;False;True;True;False;255;False;-1;255;False;-1;255;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;False;False;False;True;3;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;2;True;17;d3d9;d3d11;glcore;gles;gles3;metal;vulkan;xbox360;xboxone;xboxseries;ps4;playstation;psp2;n3ds;wiiu;switch;nomrt;0;False;True;1;1;False;-1;0;False;-1;1;1;False;-1;0;False;-1;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;-1;False;False;False;False;False;False;True;True;False;3;False;-1;255;False;-1;255;False;-1;6;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;True;1;False;-1;True;3;False;-1;True;True;0;False;-1;0;False;-1;True;1;LightMode=UniversalForward;False;False;3;Include;;False;;Native;Define;SHADOWS_SHADOWMASK ;False;;Custom;Define;LIGHTMAP_SHADOW_MIXING;False;;Custom;Hidden/InternalErrorShader;0;0;Standard;22;Surface;0;637907986160208080;  Blend;0;0;Two Sided;1;637939936961855668;Cast Shadows;1;637902205630114247;  Use Shadow Threshold;0;637907986233619545;Receive Shadows;1;0;GPU Instancing;1;637907985755765500;LOD CrossFade;1;637907985705130755;Built-in Fog;1;637944461292224148;DOTS Instancing;1;637929599127041209;Meta Pass;0;637907985862699637;Extra Pre Pass;1;637895286114259463;Tessellation;0;637907986108290338;  Phong;0;637907986103939104;  Strength;0.5,False,-1;0;  Type;0;0;  Tess;16,False,-1;0;  Min;10,False,-1;0;  Max;25,False,-1;0;  Edge Length;16,False,-1;0;  Max Displacement;25,False,-1;0;Vertex Position,InvertActionOnDeselection;1;0;0;5;True;True;True;True;False;False;;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;39;-6,232;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;3;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;True;0;False;-1;False;False;False;False;False;False;False;False;False;True;False;255;False;-1;255;False;-1;255;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;False;False;False;True;3;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;2;True;17;d3d9;d3d11;glcore;gles;gles3;metal;vulkan;xbox360;xboxone;xboxseries;ps4;playstation;psp2;n3ds;wiiu;switch;nomrt;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;False;False;True;False;False;False;False;0;False;-1;False;False;False;False;False;False;False;False;False;True;1;False;-1;True;3;False;-1;False;True;1;LightMode=ShadowCaster;False;False;0;Hidden/InternalErrorShader;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;41;-6,232;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;3;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;Meta;0;4;Meta;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;True;0;False;-1;False;False;False;False;False;False;False;False;False;True;False;255;False;-1;255;False;-1;255;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;False;False;False;True;3;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;2;True;17;d3d9;d3d11;glcore;gles;gles3;metal;vulkan;xbox360;xboxone;xboxseries;ps4;playstation;psp2;n3ds;wiiu;switch;nomrt;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;-1;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Meta;False;False;0;Hidden/InternalErrorShader;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;40;-6,232;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;3;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthOnly;0;3;DepthOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;True;0;False;-1;False;False;False;False;False;False;False;False;False;True;False;255;False;-1;255;False;-1;255;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;False;False;False;True;3;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;2;True;17;d3d9;d3d11;glcore;gles;gles3;metal;vulkan;xbox360;xboxone;xboxseries;ps4;playstation;psp2;n3ds;wiiu;switch;nomrt;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;False;False;True;False;False;False;False;0;False;-1;False;False;False;False;False;False;False;False;False;True;1;False;-1;False;False;True;1;LightMode=DepthOnly;False;False;0;Hidden/InternalErrorShader;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;37;767.6155,655.3234;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;3;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ExtraPrePass;0;0;Outline;5;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;-1;False;True;0;False;-1;False;False;False;False;False;False;False;False;False;True;False;255;False;-1;255;False;-1;255;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;False;False;False;True;3;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;2;True;17;d3d9;d3d11;glcore;gles;gles3;metal;vulkan;xbox360;xboxone;xboxseries;ps4;playstation;psp2;n3ds;wiiu;switch;nomrt;0;False;True;1;1;False;-1;0;False;-1;0;1;False;-1;0;False;-1;False;False;False;False;False;False;False;False;False;False;False;True;True;1;False;-1;False;True;True;True;True;True;0;False;-1;False;False;False;False;False;False;True;True;False;3;False;-1;255;False;-1;255;False;-1;7;False;-1;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;True;1;False;-1;True;3;False;-1;True;True;0;False;-1;0;False;-1;True;0;False;False;0;Hidden/InternalErrorShader;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1868;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;False;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1869;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthOnly;0;3;DepthOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;False;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;False;False;True;1;LightMode=DepthOnly;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1870;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;Meta;0;4;Meta;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Meta;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1871;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;Universal2D;0;5;Universal2D;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=Universal2D;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1872;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;SceneSelectionPass;0;6;SceneSelectionPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=SceneSelectionPass;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1873;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ScenePickingPass;0;7;ScenePickingPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Picking;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1874;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormals;0;8;DepthNormals;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;False;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1875;810.7261,969.3201;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormalsOnly;0;9;DepthNormalsOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;True;9;d3d11;metal;vulkan;xboxone;xboxseries;playstation;ps4;ps5;switch;0;;0;0;Standard;0;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1867;806.4797,952.0533;Float;False;True;-1;2;StylizedToonEditor;0;13;Stylized Toon;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;8;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;True;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;True;1;1;False;;0;False;;1;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;23;Surface;0;0;  Blend;0;0;Two Sided;1;0;Forward Only;0;0;Cast Shadows;1;0;  Use Shadow Threshold;0;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;0;0;Built-in Fog;0;0;DOTS Instancing;0;0;Meta Pass;0;0;Extra Pre Pass;1;638213004773831797;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;True;True;True;True;False;False;True;True;True;True;False;;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1866;781.002,733.6503;Float;False;False;-1;2;UnityEditor.ShaderGraphUnlitGUI;0;13;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ExtraPrePass;0;0;ExtraPrePass;5;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;3;True;12;all;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;True;True;1;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;0;False;False;0;;0;0;Standard;0;False;0
 WireConnection;1651;1;1669;0
 WireConnection;1655;1;1651;1
 WireConnection;1655;2;1652;0
@@ -3392,12 +4668,11 @@ WireConnection;1846;0;381;0
 WireConnection;1846;1;1845;0
 WireConnection;1857;0;1856;0
 WireConnection;1857;1;1790;0
-WireConnection;38;2;42;0
-WireConnection;38;3;673;0
-WireConnection;38;4;674;0
-WireConnection;37;0;42;0
-WireConnection;37;1;1349;0
-WireConnection;37;2;674;0
-WireConnection;37;3;365;0
+WireConnection;1867;2;42;0
+WireConnection;1867;3;673;0
+WireConnection;1867;4;674;0
+WireConnection;1866;0;42;0
+WireConnection;1866;2;1349;0
+WireConnection;1866;3;365;0
 ASEEND*/
-//CHKSM=DB54AFED26088580F0A7A084775DAF5103DB7AD9
+//CHKSM=A077AB3A3D2C34983B042204E50D4BFFA66C1314

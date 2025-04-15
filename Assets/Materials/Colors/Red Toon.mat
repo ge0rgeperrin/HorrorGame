@@ -8,10 +8,8 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Red Toon
-  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 4800000, guid: 60e29b7951f20da47b11861d166b7036, type: 3}
   m_ValidKeywords:
-  - _GLOSSYREFLECTIONS_OFF
-  m_InvalidKeywords:
   - _OUTLINETYPE_POSITION
   - _OVERLAYMODE1_NONE
   - _OVERLAYMODE_NONE
@@ -21,8 +19,10 @@ Material:
   - _USELIGHTRAMP_STEP
   - _USEOUTLINE_ON
   - _USEPURESKETCH_ON
-  - _USESHADOWS_ON
   - _USESPECULAR_ON
+  m_InvalidKeywords:
+  - _GLOSSYREFLECTIONS_OFF
+  - _USESHADOWS_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -174,6 +174,7 @@ Material:
     - _OverlayUVTilling: 0
     - _PaperTilling: 1
     - _Parallax: 0.005
+    - _QueueControl: -1
     - _QueueOffset: 0
     - _RampDiffuseTextureLoaded: 1
     - _ReceiveShadows: 1

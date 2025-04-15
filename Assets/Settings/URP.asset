@@ -18,12 +18,6 @@ MonoBehaviour:
   m_RendererData: {fileID: 0}
   m_RendererDataList:
   - {fileID: 11400000, guid: d0f8a4955ce2a024a99c2ddef7f381a2, type: 2}
-  - {fileID: 11400000, guid: 97d2088b060d9b3429b0b889ffb668f0, type: 2}
-  - {fileID: 11400000, guid: 30ee78a4f06b33c44822a99dfb15bbc9, type: 2}
-  - {fileID: 11400000, guid: 14d9039787c326649bb51b63173e82e9, type: 2}
-  - {fileID: 11400000, guid: b56738a484c74a64798418bbcdf8edf5, type: 2}
-  - {fileID: 11400000, guid: 7e08b2c14bbd76445a2f29f7edf0305b, type: 2}
-  - {fileID: 11400000, guid: 62c94a9c1a21d3e4abdbf71a4b175f8c, type: 2}
   m_DefaultRendererIndex: 0
   m_RequireDepthTexture: 0
   m_RequireOpaqueTexture: 0
@@ -32,7 +26,7 @@ MonoBehaviour:
   m_StoreActionsOptimization: 0
   m_SupportsHDR: 1
   m_MSAA: 1
-  m_RenderScale: 0.5
+  m_RenderScale: 0.2
   m_UpscalingFilter: 0
   m_FsrOverrideSharpness: 0
   m_FsrSharpness: 0.92
